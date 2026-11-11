@@ -88,6 +88,15 @@ st.markdown(
 )
 
 
+# Known Quest-unlocked spells (especially Level 10/20 Priest racial spells)
+KNOWN_QUEST_SPELLS: dict[int, str] = {
+    2652: "Level-10-Klassenquest 'Im Schatten' (In Tenebris): Startet bei deinem Priesterlehrer (z. B. Pater Lankester / Dunkler Kleriker Beryn); Abgabe bei Aelthalyste in Brill (Tirisfal).",
+    9035: "Level-10-Klassenquest für Trolle: Startet beim Priesterlehrer im Dorf Sen'jin / Durotar.",
+    10797: "Level-10-Klassenquest für Nachtelfen: Startet im Tempel des Mondes / Dolanaar.",
+    13908: "Level-10-Klassenquest für Menschen/Zwerge: Startet in der Kathedrale des Lichts (Sturmwind) bzw. Eisenschmiede.",
+}
+
+
 def format_copper(copper: int) -> str:
     if copper <= 0:
         return ""
@@ -340,14 +349,14 @@ with col_rot:
             )
 
 with col_side:
-    # 1. New at Trainer on THIS level
-    st.markdown(f"### 🎓 Neu beim Lehrer auf Level {current_level}")
+    # 1. New at Trainer / Quest on THIS level
+    st.markdown(f"### 🎓 Neu freigeschaltet auf Level {current_level}")
     new_spells = result["new_at_current_level"]
     if not new_spells:
         st.markdown(
             f"""
             <div class="milestone-box">
-                <span style="color:#9ca3af;">Auf <b>Level {current_level}</b> werden keine neuen Klassen-Zauberränge direkt freigeschaltet.</span>
+                <span style="color:#9ca3af;">Auf <b>Level {current_level}</b> werden keine neuen Klassen-Zauberränge freigeschaltet.</span>
             </div>
             """,
             unsafe_allow_html=True,
@@ -355,9 +364,27 @@ with col_side:
     else:
         for sp in new_spells:
             rk_badge = f" — <b>{sp['rank']}</b>" if sp["rank"] else ""
-            cost_str = format_copper(sp["trainer_cost_copper"])
-            cost_badge = f" • 💰 Lehrer: `{cost_str}`" if cost_str else ""
-            tal_badge = " • 🌿 *Talent*" if sp["requires_talent_id"] else ""
+            sp_id = sp.get("spell_id", 0)
+            quest_info = KNOWN_QUEST_SPELLS.get(sp_id)
+
+            if quest_info:
+                source_badge = " • 📜 <b style='color:#f59e0b;'>Klassen-Quest</b>"
+            elif sp.get("is_trainer_confirmed") or sp.get("trainer_cost_copper", 0) > 0:
+                cost_str = format_copper(sp["trainer_cost_copper"])
+                source_badge = f" • 💰 Lehrer: `{cost_str}`" if cost_str else " • 🎓 Lehrer"
+            elif sp.get("requires_talent_id"):
+                source_badge = " • 🌿 *Talent*"
+            else:
+                source_badge = " • 📜 *Quest / Spezial*"
+
+            quest_box_html = (
+                f"""<div style="font-size:0.83rem;color:#f59e0b;background:rgba(245,158,11,0.12);padding:6px 10px;border-radius:6px;margin-top:6px;border-left:3px solid #f59e0b;line-height:1.35;">
+                    📜 <b>Klassenquest:</b> {quest_info}
+                </div>"""
+                if quest_info
+                else ""
+            )
+
             st.markdown(
                 f"""
                 <div class="milestone-box">
@@ -365,11 +392,12 @@ with col_side:
                         ✨ {sp['name']}{rk_badge}
                     </div>
                     <div style="font-size:0.84rem;color:#9ca3af;margin:4px 0;">
-                        💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast • Schule: {sp['school']}{cost_badge}{tal_badge}
+                        💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast • Schule: {sp['school']}{source_badge}
                     </div>
                     <div style="font-size:0.85rem;color:#e2e8f0;">
                         {sp['description_raw']}
                     </div>
+                    {quest_box_html}
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -383,8 +411,16 @@ with col_side:
     if upcoming:
         for sp in upcoming:
             rk_badge = f" — <b>{sp['rank']}</b>" if sp["rank"] else ""
-            cost_str = format_copper(sp["trainer_cost_copper"])
-            cost_badge = f" • 💰 {cost_str}" if cost_str else ""
+            sp_id = sp.get("spell_id", 0)
+            quest_info = KNOWN_QUEST_SPELLS.get(sp_id)
+            if quest_info:
+                source_badge = " • 📜 Klassenquest"
+            elif sp.get("trainer_cost_copper", 0) > 0:
+                cost_str = format_copper(sp["trainer_cost_copper"])
+                source_badge = f" • 💰 {cost_str}"
+            else:
+                source_badge = ""
+
             st.markdown(
                 f"""
                 <div class="milestone-box">
@@ -392,7 +428,7 @@ with col_side:
                         🔓 Level {sp['unlock_level']}: {sp['name']}{rk_badge}
                     </div>
                     <div style="font-size:0.82rem;color:#9ca3af;margin:3px 0;">
-                        💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast{cost_badge}
+                        💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast{source_badge}
                     </div>
                     <div style="font-size:0.83rem;color:#cbd5e1;">
                         {sp['description_raw']}

@@ -472,6 +472,11 @@ def get_optimal_rotation(
                 "score": prepull_buff["score"],
                 "reason": (
                     f"Reaktiver Volks-Buff ({prepull_buff['avg_dmg']:.0f} Schattenschaden bei Treffer)."
+                    + (
+                        " (Freischaltung über Level-10-Klassenquest 'Im Schatten' in Brill!)"
+                        if prepull_buff.get("spell_id") == 2652
+                        else ""
+                    )
                 ),
             }
         )
