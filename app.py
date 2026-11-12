@@ -403,6 +403,40 @@ col_rot, col_side = st.columns([1.65, 1.0], gap="large")
 
 with col_rot:
     st.markdown("### 🎯 Optimale Kampf-Sequenz (Schritt-für-Schritt)")
+
+    # Prominent Stance/Form/Pet Banner directly above the rotation sequence
+    sop = result.get("stance_or_pet")
+    if sop:
+        sop_icon = sop.get("icon_url", "")
+        sop_icon_html = (
+            f'<img src="{sop_icon}" style="width:44px;height:44px;border-radius:8px;border:2px solid #c084fc;margin-right:14px;box-shadow:0 2px 8px rgba(0,0,0,0.5);" />'
+            if sop_icon
+            else ""
+        )
+        st.markdown(
+            f"""
+            <div style="background:linear-gradient(90deg, rgba(139,92,246,0.22) 0%, rgba(30,27,75,0.5) 100%);
+                        border:2px solid #8b5cf6;border-radius:8px;padding:12px 16px;margin-bottom:16px;
+                        display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(0,0,0,0.35);">
+                <div style="display:flex;align-items:center;">
+                    {sop_icon_html}
+                    <div>
+                        <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:#c084fc;font-weight:700;">
+                            ⚡ Erforderliche Kampf-Gestalt / Haltung
+                        </div>
+                        <div style="font-size:1.18rem;font-weight:800;color:#ffffff;margin-top:2px;">
+                            {sop.get('name','')}
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size:0.83rem;color:#cbd5e1;text-align:right;max-width:340px;line-height:1.35;background:rgba(0,0,0,0.3);padding:6px 10px;border-radius:6px;border-left:3px solid #8b5cf6;">
+                    💡 <b>Leveling-Flow:</b> {sop.get('mana_regen_note', '')}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     if not result["sequence"]:
         st.warning("Keine aktiven Kampfzauber für diese Auswahl gefunden.")
     else:
@@ -453,10 +487,30 @@ with col_rot:
             else:
                 cost_pill = f"💧 <b>{step['mana_cost']} Mana</b>"
 
+            form_tag = step.get("required_form", "")
+            if "Bären" in form_tag:
+                badge_style = "background:#451a03;color:#fed7aa;border:1px solid #ea580c;"
+            elif "Katzen" in form_tag:
+                badge_style = "background:#4a044e;color:#f0abfc;border:1px solid #c026d3;"
+            elif "Caster" in form_tag or "Normale" in form_tag:
+                badge_style = "background:#064e3b;color:#a7f3d0;border:1px solid #059669;"
+            elif "Schattengestalt" in form_tag:
+                badge_style = "background:#3b0764;color:#f3e8ff;border:1px solid #a855f7;"
+            elif "Gestaltwechsel" in form_tag:
+                badge_style = "background:#78350f;color:#fde68a;border:1px solid #d97706;font-weight:800;"
+            else:
+                badge_style = "background:#1e1b4b;color:#c7d2fe;border:1px solid #6366f1;"
+
+            form_badge_html = (
+                f'<span class="phase-badge" style="{badge_style}margin-left:6px;font-weight:700;">{form_tag}</span>'
+                if form_tag
+                else ""
+            )
+
             st.markdown(
                 f"""
                 <div class="rot-card {card_cls}">
-                    <span class="phase-badge {badge_cls}">Schritt {step['step']} • {phase} ({t_str})</span>
+                    <span class="phase-badge {badge_cls}">Schritt {step['step']} • {phase} ({t_str})</span>{form_badge_html}
                     <div class="spell-title" style="display:flex;align-items:center;margin-top:4px;">
                         {icon_html}<span>{step['display_name']}</span>
                     </div>
@@ -542,6 +596,7 @@ with col_side:
                 else "✨ "
             )
 
+            desc_html = (sp["description_raw"] or "").replace("\r\n", "<br>").replace("\n", "<br>")
             st.markdown(
                 f"""
                 <div class="milestone-box">
@@ -552,8 +607,8 @@ with col_side:
                     <div style="font-size:0.84rem;color:#9ca3af;margin:4px 0;">
                         💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast • Schule: {sp['school']}{source_badge}
                     </div>
-                    <div style="font-size:0.85rem;color:#e2e8f0;">
-                        {sp['description_raw']}
+                    <div style="font-size:0.85rem;color:#e2e8f0;line-height:1.4;">
+                        {desc_html}
                     </div>
                     {quest_box_html}
                 </div>
@@ -585,6 +640,7 @@ with col_side:
             else:
                 source_badge = ""
 
+            up_desc_html = (sp["description_raw"] or "").replace("\r\n", "<br>").replace("\n", "<br>")
             st.markdown(
                 f"""
                 <div class="milestone-box">
@@ -595,8 +651,8 @@ with col_side:
                     <div style="font-size:0.82rem;color:#9ca3af;margin:3px 0;">
                         💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast{source_badge}
                     </div>
-                    <div style="font-size:0.83rem;color:#cbd5e1;">
-                        {sp['description_raw']}
+                    <div style="font-size:0.83rem;color:#cbd5e1;line-height:1.4;">
+                        {up_desc_html}
                     </div>
                 </div>
                 """,

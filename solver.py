@@ -1037,7 +1037,7 @@ def get_optimal_rotation(
                     "step": len(sequence) + 1,
                     "timestamp_sec": round(combat_time_sec, 1),
                     "spell_id": 768,
-                    "display_name": "Katzengestalt (Cat Form)",
+                    "display_name": "🐾 In Katzengestalt verwandeln",
                     "name": "Katzengestalt",
                     "rank": "Gestaltwandel",
                     "mana_cost": 0,
@@ -1051,7 +1051,8 @@ def get_optimal_rotation(
                     "score": 100.0,
                     "custom_icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132115.jpg",
                     "reason": (
-                        "Wechsel in Katzengestalt: Nutzt 100 Energie statt Mana (0 Manakosten für alle Katzenangriffe). "
+                        "WICHTIGER SCHRITT: Nach dem Opener sofort in Katzengestalt wechseln! "
+                        "Alle folgenden Katzenangriffe nutzen 100 Energie statt Mana (0 Manakosten). "
                         "100% Manaregeneration läuft ab jetzt während des gesamten Kampfes im Hintergrund weiter!"
                     ),
                 }
@@ -1064,7 +1065,7 @@ def get_optimal_rotation(
                     "step": len(sequence) + 1,
                     "timestamp_sec": round(combat_time_sec, 1),
                     "spell_id": 5487,
-                    "display_name": "Bärengestalt (Bear Form)",
+                    "display_name": "🐾 In Bärengestalt verwandeln",
                     "name": "Bärengestalt",
                     "rank": "Gestaltwandel",
                     "mana_cost": 0,
@@ -1078,7 +1079,8 @@ def get_optimal_rotation(
                     "score": 100.0,
                     "custom_icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132276.jpg",
                     "reason": (
-                        "Wechsel in Bärengestalt: +360% Rüstung, Wut-System statt Mana (0 Manakosten für Zermalmen). "
+                        "WICHTIGER SCHRITT: Nach dem Opener sofort in Bärengestalt wechseln! "
+                        "Zermalmen erfordert zwingend Bärengestalt und nutzt Wut statt Mana (0 Manakosten). "
                         "100% Manaregeneration läuft ab jetzt während des gesamten Kampfes im Hintergrund weiter!"
                     ),
                 }
@@ -1347,7 +1349,7 @@ def get_optimal_rotation(
             }
         )
 
-    # Enrich sequence steps with official Blizzard CDN icon URLs
+    # Enrich sequence steps with official Blizzard CDN icon URLs and required form/stance
     fdid_by_spell_id = {sp["spell_id"]: sp.get("icon_fdid", 0) for sp in all_class_spells}
     for step in sequence:
         sid = step.get("spell_id", 0)
@@ -1356,6 +1358,50 @@ def get_optimal_rotation(
         step["icon_url"] = step.get("custom_icon_url") or (
             f"https://render.worldofwarcraft.com/eu/icons/56/{fdid}.jpg" if fdid > 0 else ""
         )
+
+        # Class-specific stance/form tag for crystal-clear gameplay guidance
+        s_name = step.get("name", "")
+        s_phase = step.get("phase", "")
+        cls_u = class_name.upper()
+
+        if cls_u == "DRUID":
+            if "Bärengestalt" in s_name or s_name in ("Zermalmen", "Prankenhieb", "Hieb", "Wilde Attacke", "Demoralisierendes Gebrüll"):
+                step["required_form"] = "🐾 Gestaltwechsel" if "Gestaltwandel" in s_phase else "🐻 Bärengestalt erforderlich"
+            elif "Katzengestalt" in s_name or s_name in ("Klaue", "Schreddern", "Zerfetzen", "Wilder Biss", "Krallenhieb", "Aufschlitzen"):
+                step["required_form"] = "🐾 Gestaltwechsel" if "Gestaltwandel" in s_phase else "🐱 Katzengestalt erforderlich"
+            elif "Gestaltwandel" in s_phase:
+                step["required_form"] = "🐾 Gestaltwechsel"
+            elif "Auto-Attack" in s_phase:
+                step["required_form"] = "🐱 Katzengestalt (Nahkampf)" if current_level >= 20 else ("🐻 Bärengestalt (Nahkampf)" if current_level >= 10 else "👤 Caster / Stab")
+            else:
+                step["required_form"] = "👤 Caster-Gestalt (vor Pull)"
+        elif cls_u == "PRIEST":
+            if mods.get("shadowform_active"):
+                step["required_form"] = "🔮 In Schattengestalt"
+            else:
+                step["required_form"] = "👤 Caster-Gestalt"
+        elif cls_u == "WARRIOR":
+            if current_level >= 30:
+                step["required_form"] = "⚔️ In Berserkerhaltung"
+            else:
+                step["required_form"] = "⚔️ In Kampfhaltung"
+        elif cls_u == "ROGUE":
+            if "Opener" in s_phase or "Pre-Pull" in s_phase:
+                step["required_form"] = "🗡️ Aus Verstohlenheit (Stealth)"
+            else:
+                step["required_form"] = "🗡️ Nahkampf (Combo)"
+        elif cls_u == "HUNTER":
+            step["required_form"] = "🏹 Distanz (Fernwaffe & Pet)"
+        elif cls_u == "PALADIN":
+            step["required_form"] = "🛡️ Nahkampf (Siegel & 2H-Waffe)"
+        elif cls_u == "SHAMAN":
+            step["required_form"] = "⚡ Nahkampf (Waffen-Vz & Totems)"
+        elif cls_u == "MAGE":
+            step["required_form"] = "❄️ Frost-Kiting (36m Distanz)"
+        elif cls_u == "WARLOCK":
+            step["required_form"] = "😈 Fernkampf (DoTs & Dämon)"
+        else:
+            step["required_form"] = "Standard"
 
     # 4. Trainer & Next-Level Preview (current_level and +1 to +3)
     new_at_current_level = [
