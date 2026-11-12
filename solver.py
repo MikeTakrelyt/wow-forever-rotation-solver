@@ -122,16 +122,36 @@ def get_class_stance_or_pet(class_name: str, level: int) -> Optional[Dict[str, A
                 "icon_fdid": 136121,
                 "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136121.jpg",
                 "summary": "+10% Schattenschaden, -50% Schatten-Manakosten, +100% Schatten-Crit-Bonus & -15% erlittener physischer Schaden!",
-                "mana_regen_note": "Keine Heilzauber im Kampf nötig; optimal für pausenlosen Schatten-Grind.",
+                "mana_regen_note": "Schattengestalt aktiv! -50% Manakosten auf Schattenzauber + Willensentzug (Spirit Tap) nach jedem Mob-Kill.",
+            }
+        elif level >= 12:
+            return {
+                "type": "Haltung",
+                "name": "Menschliche Gestalt (Zauberstab & Willensentzug)",
+                "icon_fdid": 135940,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135940.jpg",
+                "summary": "Frontloading mit PW:S & DoTs, danach FSR-Zauberstab-Phase zur 100% Willenskraft-Manaregeneration.",
+                "mana_regen_note": "Willensentzug (Spirit Tap aktiv!): Verdoppelt die Willenskraft und Manaregeneration für 15 Sek. nach jedem Mob-Kill.",
+            }
+        elif level >= 10:
+            wand_rk = 1 if level == 10 else 2
+            bonus_pct = 13 if level == 10 else 25
+            return {
+                "type": "Haltung",
+                "name": "Menschliche Gestalt (Zauberstab-Spezialisierung)",
+                "icon_fdid": 135940,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135940.jpg",
+                "summary": f"Erste Talentpunkte in Zauberstab-Spezialisierung ({wand_rk}/2: +{bonus_pct}% Zauberstab-Schaden). Noch kein Willensentzug (erst ab Lv 12).",
+                "mana_regen_note": f"Zauberstab-Spezialisierung ({wand_rk}/2) aktiv! FSR-Manaregeneration läuft während des Finishers; Willensentzug folgt ab Level 12.",
             }
         else:
             return {
                 "type": "Haltung",
-                "name": "Menschliche Gestalt (Zauberstab-Grind)",
+                "name": "Menschliche Gestalt (Basis-Zauberstab)",
                 "icon_fdid": 135940,
                 "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135940.jpg",
-                "summary": "Frontloading mit PW:S & DoTs, danach FSR-Zauberstab-Phase zur 100% Willenskraft-Manaregeneration.",
-                "mana_regen_note": "Willensentzug (Spirit Tap) verdoppelt die Willenskraft nach jedem Mob-Kill!",
+                "summary": "Frontloading mit PW:S & DoTs, danach Zauberstab-Finisher (noch keine Talente vor Level 10).",
+                "mana_regen_note": "5-Sekunden-Regel greift während der Zauberstab-Phase zur natürlichen Willenskraft-Manaregeneration.",
             }
     elif cls == "WARRIOR":
         if level >= 30:
@@ -162,14 +182,24 @@ def get_class_stance_or_pet(class_name: str, level: int) -> Optional[Dict[str, A
             "mana_regen_note": "Energie-System: Feste 100 Energie, regeneriert 20 Energie alle 2 Sekunden.",
         }
     elif cls == "MAGE":
-        return {
-            "type": "Rüstung",
-            "name": "Frost-Rüstung / Eis-Rüstung",
-            "icon_fdid": 135843,
-            "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135843.jpg",
-            "summary": "Verlangsamt gegnerische Angreifer um 30%, erhöht Rüstung und schützt beim Frostblitz-Kiting aus 36m Reichweite + Arkane Intelligenz.",
-            "mana_regen_note": "Hervorrufung (Evocation) ab Lv 20 & Zauberstab-Finishers zur Manaregeneration.",
-        }
+        if level >= 20:
+            return {
+                "type": "Rüstung",
+                "name": "Frost-Rüstung / Eis-Rüstung & Hervorrufung",
+                "icon_fdid": 135843,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135843.jpg",
+                "summary": "Verlangsamt gegnerische Angreifer um 30%, erhöht Rüstung und schützt beim Frostblitz-Kiting aus 36m Reichweite + Arkane Intelligenz.",
+                "mana_regen_note": "Hervorrufung (Evocation, ab Lv 20) stellt in 8s 60% Gesamt-Mana her; Zauberstab-Finisher sparen Mana.",
+            }
+        else:
+            return {
+                "type": "Rüstung",
+                "name": "Frost-Rüstung & Frostblitz-Kiting",
+                "icon_fdid": 135843,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135843.jpg",
+                "summary": "Verlangsamt Nahkämpfer um 30% bei Treffern. Frostblitz-Opener aus maximaler 36m Distanz halten Mobs auf Abstand.",
+                "mana_regen_note": "Zauberstab-Finisher ab 30-40% Mob-Leben aktivieren die 5-Sekunden-Regel zur Manaregeneration.",
+            }
     elif cls == "PALADIN":
         if level >= 20:
             return {
