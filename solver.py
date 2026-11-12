@@ -729,6 +729,16 @@ def get_optimal_rotation(
             }
         )
 
+    # Enrich sequence steps with official Blizzard CDN icon URLs
+    fdid_by_spell_id = {sp["spell_id"]: sp.get("icon_fdid", 0) for sp in all_class_spells}
+    for step in sequence:
+        sid = step.get("spell_id", 0)
+        fdid = fdid_by_spell_id.get(sid, 135139 if sid == 5019 else 0)
+        step["icon_fdid"] = fdid
+        step["icon_url"] = (
+            f"https://render.worldofwarcraft.com/eu/icons/56/{fdid}.jpg" if fdid > 0 else ""
+        )
+
     # 4. Trainer & Next-Level Preview (current_level and +1 to +3)
     new_at_current_level = [
         sp

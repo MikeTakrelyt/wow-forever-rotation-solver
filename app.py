@@ -345,11 +345,20 @@ with col_rot:
                 else ""
             )
 
+            icon_url = step.get("icon_url", "")
+            icon_html = (
+                f'<img src="{icon_url}" style="width:42px;height:42px;border-radius:6px;border:2px solid #a335ee;margin-right:12px;vertical-align:middle;box-shadow:0 2px 6px rgba(0,0,0,0.6);" />'
+                if icon_url
+                else ""
+            )
+
             st.markdown(
                 f"""
                 <div class="rot-card {card_cls}">
                     <span class="phase-badge {badge_cls}">Schritt {step['step']} • {phase} ({t_str})</span>
-                    <div class="spell-title">{step['display_name']}</div>
+                    <div class="spell-title" style="display:flex;align-items:center;margin-top:4px;">
+                        {icon_html}<span>{step['display_name']}</span>
+                    </div>
                     <div class="spell-meta">
                         💧 <b>{step['mana_cost']} Mana</b> &nbsp;|&nbsp;
                         ⏱️ <b>{step['exec_time_sec']:.1f}s</b> Dauer &nbsp;|&nbsp;
@@ -398,11 +407,18 @@ with col_side:
                 else ""
             )
 
+            fdid = sp.get("icon_fdid", 0)
+            ms_icon = (
+                f'<img src="https://render.worldofwarcraft.com/eu/icons/56/{fdid}.jpg" style="width:28px;height:28px;border-radius:4px;border:1px solid #fcd34d;margin-right:8px;vertical-align:middle;" />'
+                if fdid > 0
+                else "✨ "
+            )
+
             st.markdown(
                 f"""
                 <div class="milestone-box">
                     <div style="font-size:1.05rem;font-weight:700;color:#fcd34d;display:flex;justify-content:space-between;align-items:center;">
-                        <span>✨ {sp['name']}{rk_badge}</span>
+                        <span style="display:flex;align-items:center;">{ms_icon}{sp['name']}{rk_badge}</span>
                         <a href="https://www.wowhead.com/forever/de/spell={sp['spell_id']}" target="_blank" style="font-size:0.75rem;color:#c084fc;text-decoration:none;font-weight:400;border:1px solid #4c1d95;padding:2px 6px;border-radius:4px;background:#2e1065;">🔗 Wowhead ↗</a>
                     </div>
                     <div style="font-size:0.84rem;color:#9ca3af;margin:4px 0;">
@@ -426,6 +442,12 @@ with col_side:
         for sp in upcoming:
             rk_badge = f" — <b>{sp['rank']}</b>" if sp["rank"] else ""
             sp_id = sp.get("spell_id", 0)
+            fdid = sp.get("icon_fdid", 0)
+            up_icon = (
+                f'<img src="https://render.worldofwarcraft.com/eu/icons/56/{fdid}.jpg" style="width:24px;height:24px;border-radius:4px;border:1px solid #7dd3fc;margin-right:8px;vertical-align:middle;" />'
+                if fdid > 0
+                else "🔓 "
+            )
             quest_info = KNOWN_QUEST_SPELLS.get(sp_id)
             if quest_info:
                 source_badge = " • 📜 Klassenquest"
@@ -439,7 +461,7 @@ with col_side:
                 f"""
                 <div class="milestone-box">
                     <div style="font-size:0.98rem;font-weight:700;color:#7dd3fc;display:flex;justify-content:space-between;align-items:center;">
-                        <span>🔓 Level {sp['unlock_level']}: {sp['name']}{rk_badge}</span>
+                        <span style="display:flex;align-items:center;">{up_icon}Level {sp['unlock_level']}: {sp['name']}{rk_badge}</span>
                         <a href="https://www.wowhead.com/forever/de/spell={sp['spell_id']}" target="_blank" style="font-size:0.75rem;color:#7dd3fc;text-decoration:none;font-weight:400;border:1px solid #0369a1;padding:2px 6px;border-radius:4px;background:#0c4a6e;">🔗 Wowhead ↗</a>
                     </div>
                     <div style="font-size:0.82rem;color:#9ca3af;margin:3px 0;">
