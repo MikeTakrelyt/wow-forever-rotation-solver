@@ -58,6 +58,199 @@ def get_recommended_wand(
     return round(base_dps * wand_dmg_mult, 2), None, []
 
 
+# Optimal leveling talent priority progression per class from official Blizzard API (wf_talents)
+DEFAULT_CLASS_TALENT_PRIORITY: Dict[str, List[Tuple[int, int]]] = {
+    "PRIEST": [
+        (105850, 2),  # T0 Zauberstab-Spezialisierung (+25% Wand dmg)
+        (105833, 5),  # T0 Willensentzug
+        (105830, 2),  # T1 Verbessertes Schattenwort: Schmerz
+        (105831, 3),  # T1 Verbesserter Gedankenschlag
+        (105826, 1),  # T2 Gedankenschinden
+        (105825, 2),  # T2 Verbessertes Gedankenschinden
+        (105829, 2),  # T1 Schattenreichweite
+        (105820, 1),  # T3 Vampirumarmung
+        (105821, 3),  # T3 Schattenwirken
+        (105831, 5),  # T1 Finish Verbesserter Gedankenschlag 5/5
+        (105819, 2),  # T4 Verschlingende Ansteckung
+        (105818, 5),  # T5 Dunkelheit
+        (105817, 1),  # T6 Schattengestalt (31st point at Lv 40)
+        (105849, 5),  # T0 Zwillingsdisziplinen
+        (105846, 3),  # T1 Verbessertes Machtwort: Schild
+        (105842, 3),  # T1 Mentale Beweglichkeit
+        (105843, 3),  # T2 Meditation
+        (105844, 1),  # T2 Innerer Fokus
+        (105839, 1),  # T3 Seelenwehr
+        (105837, 4),  # T1 Mentale Stärke
+    ],
+    "MAGE": [
+        (105779, 5),  # T0 Verbesserter Frostblitz
+        (105777, 5),  # T1 Eissplitter
+        (105767, 1),  # T2 Eislanze
+        (105772, 3),  # T2 Frost-Kanalisierung
+        (105774, 1),  # T1 Erfrierung
+        (105769, 1),  # T3 Eisblock
+        (105768, 3),  # T3 Zertrümmern
+        (105770, 1),  # T3 Arktische Reichweite
+        (105766, 1),  # T4 Kälteeinbruch
+        (105765, 3),  # T4 Verbesserter Kältekegel
+        (105764, 1),  # T4 Eisige Finger
+        (105763, 5),  # T5 Winterkälte
+        (105762, 1),  # T6 Eisbarriere (31st point at Lv 40)
+        (105815, 2),  # T0 Arkan: Zauberstab-Spezialisierung (+25% Wand)
+        (105810, 5),  # T1 Arkan: Arkane Konzentration
+        (105807, 3),  # T2 Arkan: Arkaner Einschlag
+        (105806, 1),  # T2 Arkan: Arkanschlag
+        (105801, 1),  # T4 Arkan: Geistesgegenwart
+        (105798, 1),  # T6 Arkan: Arkane Macht
+        (105774, 3),  # T1 Frost: Finish Erfrierung
+    ],
+    "WARLOCK": [
+        (105924, 5),  # T0 Verbesserte Verderbnis
+        (105925, 3),  # T0 Unterdrückung
+        (105923, 2),  # T1 Grimmige Reichweite
+        (105916, 1),  # T2 Fluch verstärken
+        (105918, 3),  # T2 Teufelskonzentration
+        (105919, 1),  # T2 Verbessertes Omen der Pein
+        (105913, 1),  # T3 Fluch der Erschöpfung
+        (110876, 4),  # T3 Böswilligkeit
+        (105912, 1),  # T4 Lebensentzug
+        (105911, 3),  # T4 Seelenentzug
+        (105910, 5),  # T5 Schattenbeherrschung
+        (105909, 1),  # T6 Zermürben (31st point at Lv 40)
+        (105907, 5),  # T0 Dämonologie: Dämonische Umarmung
+        (105908, 3),  # T0 Dämonologie: Verbesserter Wichtel
+        (105904, 3),  # T1 Dämonologie: Verbesserter Leerwandler
+        (105900, 1),  # T2 Dämonologie: Dämonische Opferung
+        (105892, 1),  # T4 Dämonologie: Seelenverbindung
+        (105889, 5),  # T0 Zerstörung: Verbesserter Schattenblitz
+        (105884, 1),  # T2 Zerstörung: Schattenbrand
+    ],
+    "WARRIOR": [
+        (105957, 5),  # T0 Abwehr
+        (105954, 3),  # T1 Verbesserter Taktiker
+        (105955, 2),  # T1 Verbesserter Sturmangriff
+        (105950, 3),  # T2 Tiefe Wunden
+        (105951, 1),  # T2 Aggressionskontrolle
+        (105949, 1),  # T3 Aufspießender Stoß
+        (105948, 3),  # T3 Zweihandwaffen-Spezialisierung
+        (105947, 1),  # T3 Durchbohren
+        (105945, 1),  # T4 Weitreichende Stöße
+        (105944, 4),  # T4 Waffenmeister
+        (105942, 3),  # T5 Verbesserte Kniesehne
+        (110858, 2),  # T5 Verbessertes Zerschmettern
+        (105941, 1),  # T6 Tödlicher Stoß (31st point at Lv 40)
+        (105939, 5),  # T0 Furor: Grausamkeit
+        (105937, 5),  # T1 Furor: Entfesselter Zorn
+        (105935, 1),  # T2 Furor: Durchdringendes Heulen
+        (105931, 5),  # T3 Furor: Wutanfall
+        (105927, 1),  # T4 Furor: Todeswunsch
+        (105930, 1),  # T6 Furor: Blutdurst
+    ],
+    "ROGUE": [
+        (113398, 5),  # T0 Blitzartige Reflexe
+        (105719, 3),  # T1 Durchbohrende Wunden
+        (105737, 2),  # T1 Präzision
+        (105735, 1),  # T2 Riposte
+        (105736, 2),  # T2 Durchhaltevermögen
+        (105759, 2),  # T2 Gelassenheit
+        (105730, 3),  # T3 Aggression
+        (105733, 2),  # T3 Verbesserter Tritt
+        (105728, 1),  # T4 Klingenwirbel
+        (105727, 4),  # T4 Niedermetzeln
+        (105740, 5),  # T5 Blitzender Stahl
+        (105724, 1),  # T6 Adrenalinrausch (31st point at Lv 40)
+        (105722, 5),  # T0 Meucheln: Tücke
+        (105721, 3),  # T1 Meucheln: Skrupellosigkeit
+        (105716, 2),  # T2 Meucheln: Tödlichkeit
+        (105715, 1),  # T4 Meucheln: Kaltblütigkeit
+        (105760, 5),  # T0 Täuschung: Günstige Gelegenheit
+        (105746, 1),  # T4 Täuschung: Vorbereitung
+        (105748, 1),  # T4 Täuschung: Blutsturz
+    ],
+    "HUNTER": [
+        (105011, 5),  # T0 Tödliche Angriffe
+        (105009, 5),  # T1 Effizienz
+        (105006, 5),  # T2 Verbesserter arkaner Schuss
+        (105004, 1),  # T3 Aura des Volltreffers
+        (105002, 4),  # T3 Todbringende Schüsse
+        (105000, 1),  # T4 Streuschuss
+        (105001, 3),  # T4 Sperrfeuer
+        (104999, 1),  # T4 Rasche Erholung
+        (104998, 5),  # T5 Distanzwaffen-Spezialisierung
+        (104997, 1),  # T6 Heckenschützenschuss (31st point at Lv 40)
+        (104960, 5),  # T0 Tierherrschaft: Tödliche Aspekte
+        (104969, 5),  # T2 Tierherrschaft: Entfesselter Zorn
+        (104964, 1),  # T3 Tierherrschaft: Einschüchterung
+        (104961, 1),  # T6 Tierherrschaft: Zorn des Wildtiers
+        (104996, 5),  # T0 Überleben: Verbessertes Fährtenlesen
+        (104986, 1),  # T3 Überleben: Abschreckung
+    ],
+    "PALADIN": [
+        (105707, 5),  # T0 Abwehr
+        (105703, 3),  # T1 Überzeugung
+        (105701, 2),  # T1 Gesegnetes Richturteil
+        (105696, 1),  # T2 Siegel des Befehls
+        (105702, 3),  # T2 Rechtschaffene Schwächung
+        (105331, 1),  # T2 Unumstößlicher Glaube
+        (105697, 3),  # T3 Zweihandwaffen-Spezialisierung
+        (105698, 2),  # T3 Auge um Auge
+        (105694, 1),  # T4 Buße
+        (105693, 3),  # T4 Rache
+        (113629, 1),  # T4 Böses vertreiben
+        (110882, 5),  # T5 Champion des Lichts
+        (105692, 1),  # T6 Entfesselter Zorn (31st point at Lv 40)
+        (105332, 5),  # T0 Schutz: Göttliche Weisheit
+        (105638, 3),  # T1 Schutz: Präzision
+        (105628, 1),  # T4 Schutz: Heiliger Schild
+        (105335, 5),  # T0 Heilig: Spiritueller Fokus
+        (105325, 1),  # T2 Heilig: Göttliche Gunst
+        (105323, 1),  # T4 Heilig: Heiliger Schock
+    ],
+    "SHAMAN": [
+        (104753, 5),  # T0 Donnernde Stöße
+        (104755, 3),  # T1 Geistige Gewandtheit
+        (104751, 2),  # T1 Verbesserter Blitzschlagschild
+        (104750, 3),  # T2 Elementarwaffen
+        (104748, 2),  # T2 Vorahnung
+        (104743, 1),  # T3 Sturmschlag
+        (104746, 4),  # T3 Zähigkeit
+        (104744, 2),  # T4 Geistige Schnelligkeit
+        (104742, 2),  # T4 Verbesserter Sturmschlag
+        (104745, 1),  # T4 Waffen der Geister
+        (104741, 5),  # T5 Waffe des Mahlstroms
+        (104740, 1),  # T6 Zorn des Scharfsehers (31st point at Lv 40)
+        (104772, 5),  # T0 Elementar: Erschütterung
+        (104767, 5),  # T1 Elementar: Nachklingen
+        (104768, 1),  # T2 Elementar: Elementarfokus
+        (104766, 5),  # T5 Elementar: Elementarfuror
+        (104739, 3),  # T0 Wiederherstellung: Verbesserte Welle der Heilung
+        (104728, 1),  # T3 Wiederherstellung: Totem der Manaflut
+    ],
+    "DRUID": [
+        (104938, 5),  # T0 Wildheit
+        (104940, 3),  # T1 Instinkt der Wildnis
+        (104942, 2),  # T1 Dickes Fell
+        (104944, 1),  # T2 Wilde Attacke
+        (104945, 3),  # T2 Schreddernde Angriffe
+        (104948, 1),  # T2 Ungezähmte Wut
+        (104949, 1),  # T3 Aufschlitzen
+        (104952, 3),  # T3 Raubtierschläge
+        (104947, 1),  # T3 Blutraserei
+        (104950, 2),  # T4 Instinkt der Natur
+        (104955, 1),  # T4 Rudelführer
+        (104953, 5),  # T5 Beißen und Reißen
+        (104956, 1),  # T6 Urtümlicher Biss (31st point at Lv 40)
+        (113563, 1),  # T6 Machtverschiebung
+        (104958, 5),  # T0 Wiederherstellung: Herz der Wildnis
+        (104922, 5),  # T1 Wiederherstellung: Naturalist
+        (104921, 1),  # T4 Wiederherstellung: Schnelligkeit der Natur
+        (104923, 5),  # T0 Gleichgewicht: Verbesserter Zorn
+        (104930, 1),  # T3 Gleichgewicht: Insektenschwarm
+        (104937, 1),  # T6 Gleichgewicht: Moonkingestalt
+    ],
+}
+
+
 def allocate_talents_for_level(
     class_name: str,
     current_level: int,
@@ -76,9 +269,10 @@ def allocate_talents_for_level(
     allocated: Dict[int, int] = {}  # talent_id -> rank
     points_left = total_points
 
-    if class_name.upper() == "PRIEST" and total_points > 0:
-        # Official Blizzard API Node IDs for WoW Forever Priest (/data/wow/talent-tree/1114):
-        if spec_profile == "holy_smite":
+    cls_key = class_name.upper()
+
+    if total_points > 0:
+        if cls_key == "PRIEST" and spec_profile == "holy_smite":
             # Discipline Wand Spec 2/2 (105850) + Macht im Licht (110853) + Göttlicher Furor (105863) + Sühne (105834)
             priority_order = [
                 (105850, 2),  # T0 Disc: Zauberstab-Spezialisierung 2/2 (+13% / +25% Wand dmg)
@@ -102,62 +296,7 @@ def allocate_talents_for_level(
                 (105836, 1),  # T6 Disc: Seele der Macht 1/1
             ]
         else:
-            # Default 'auto' / 'shadow_leveling' using official WoW Forever node IDs:
-            # Zauberstab-Spezialisierung (105850) has max_rank=2 (+13% / +25% Wand dmg)!
-            if current_level >= 40:
-                # At Level 40+, 30 points in Shadow + 31st point in Schattengestalt (105817) (-50% Shadow mana & +10% Shadow dmg!)
-                priority_order = [
-                    (105833, 5),  # T0 Shadow: Willensentzug 5/5 (5 pts)
-                    (105830, 2),  # T1 Shadow: Verbessertes Schattenwort: Schmerz 2/2 (7 pts)
-                    (105831, 3),  # T1 Shadow: Verbesserter Gedankenschlag 3/5 (10 pts)
-                    (105826, 1),  # T2 Shadow: Gedankenschinden 1/1 (11 pts)
-                    (105825, 2),  # T2 Shadow: Verbessertes Gedankenschinden 2/2 (13 pts)
-                    (105829, 2),  # T1 Shadow: Schattenreichweite 2/2 (15 pts)
-                    (105820, 1),  # T3 Shadow: Vampirumarmung 1/1 (16 pts)
-                    (105821, 3),  # T3 Shadow: Schattenwirken 3/3 (19 pts)
-                    (105831, 5),  # T1 Shadow: Finish Verbesserter Gedankenschlag 5/5 (21 pts)
-                    (105819, 2),  # T4 Shadow: Verschlingende Ansteckung 2/2 (23 pts)
-                    (110854, 2),  # T4 Shadow: Vorzeitiges Ableben 2/2 (25 pts)
-                    (105818, 5),  # T5 Shadow: Dunkelheit 5/5 (30 pts)
-                    (105817, 1),  # T6 Shadow: Schattengestalt 1/1 (31 pts -> Unlocked at Level 40!)
-                    # Remaining points (Lv 41-60) into Discipline:
-                    (105850, 2),  # T0 Disc: Zauberstab-Spezialisierung 2/2 (+25% Wand dmg)
-                    (105849, 5),  # T0 Disc: Zwillingsdisziplinen 5/5 (+5% Instant dmg/heal)
-                    (105846, 3),  # T1 Disc: Verbessertes Machtwort: Schild 3/3 (+20% Absorb)
-                    (105842, 3),  # T1 Disc: Mentale Beweglichkeit 3/3 (-10% Instant/Smite/HF mana)
-                    (105843, 3),  # T2 Disc: Meditation 3/3 (50% Spirit regen while casting)
-                    (105844, 1),  # T2 Disc: Innerer Fokus 1/1
-                    (105839, 1),  # T3 Disc: Seelenwehr 1/1 (-4s CD & -15% Mana on PW:S)
-                    (105837, 2),  # T1 Disc: Mentale Stärke 2/5
-                ]
-            else:
-                # Lv 10-39 Optimal Leveling Progression:
-                # Lv 10-11: Zauberstab-Spezialisierung 2/2 (+13% / +25% Wand dmg)
-                # Lv 12-16: Willensentzug 5/5
-                # Lv 17-18: Verbessertes Schattenwort: Schmerz 2/2
-                # Lv 19-21: Verbesserter Gedankenschlag 3/5
-                # Lv 22:    Gedankenschinden 1/1
-                # Lv 23-24: Verbessertes Gedankenschinden 2/2
-                # Lv 25-26: Schattenreichweite 2/2
-                # Lv 27:    Vampirumarmung 1/1
-                # Lv 28-30: Schattenwirken 3/3
-                # Lv 31-32: Verbesserter Gedankenschlag 5/5
-                # Lv 33-34: Verschlingende Ansteckung 2/2
-                # Lv 35-39: Dunkelheit 5/5
-                priority_order = [
-                    (105850, 2),  # T0 Disc: Zauberstab-Spezialisierung 2/2 (Lv 10-11)
-                    (105833, 5),  # T0 Shadow: Willensentzug 5/5 (Lv 12-16)
-                    (105830, 2),  # T1 Shadow: Verbessertes Schattenwort: Schmerz 2/2 (Lv 17-18)
-                    (105831, 3),  # T1 Shadow: Verbesserter Gedankenschlag 3/5 (Lv 19-21)
-                    (105826, 1),  # T2 Shadow: Gedankenschinden 1/1 (Lv 22)
-                    (105825, 2),  # T2 Shadow: Verbessertes Gedankenschinden 2/2 (Lv 23-24)
-                    (105829, 2),  # T1 Shadow: Schattenreichweite 2/2 (Lv 25-26)
-                    (105820, 1),  # T3 Shadow: Vampirumarmung 1/1 (Lv 27)
-                    (105821, 3),  # T3 Shadow: Schattenwirken 3/3 (Lv 28-30)
-                    (105831, 5),  # T1 Shadow: Finish Verbesserter Gedankenschlag 5/5 (Lv 31-32)
-                    (105819, 2),  # T4 Shadow: Verschlingende Ansteckung 2/2 (Lv 33-34)
-                    (105818, 5),  # T5 Shadow: Dunkelheit 5/5 (Lv 35-39)
-                ]
+            priority_order = DEFAULT_CLASS_TALENT_PRIORITY.get(cls_key, [])
 
         for tid, target_rk in priority_order:
             if points_left <= 0:
@@ -177,12 +316,17 @@ def allocate_talents_for_level(
         "wand_dmg_mult": 1.0,
         "shadow_dmg_mult": 1.0,
         "holy_dmg_mult": 1.0,
+        "fire_dmg_mult": 1.0,
+        "frost_dmg_mult": 1.0,
+        "nature_dmg_mult": 1.0,
+        "physical_dmg_mult": 1.0,
         "instant_dmg_mult": 1.0,
         "smite_penance_dmg_mult": 1.0,
         "mind_flay_dmg_mult": 1.0,
         "swp_extra_duration_ms": 0,
         "mind_blast_cd_reduction_ms": 0,
         "smite_hf_cast_reduction_ms": 0,
+        "frostbolt_cast_reduction_ms": 0,
         "shadow_mana_mult": 1.0,
         "instant_mana_mult": 1.0,
         "smite_hf_mana_mult": 1.0,
@@ -259,10 +403,52 @@ def allocate_talents_for_level(
             mods["devouring_plague_mana_mult"] *= 1.0 - (0.25 * rk)
         elif tid == 105818:  # Dunkelheit (5/5: +2% per rank Shadow dmg)
             mods["shadow_dmg_mult"] *= 1.0 + (0.02 * rk)
-        elif tid == 105817:  # Schattengestalt (1/1: +10% Shadow dmg, -50% Shadow mana, +100% crit dmg bonus)
-            mods["shadow_dmg_mult"] *= 1.10
-            mods["shadow_mana_mult"] *= 0.50
-            mods["shadowform_active"] = True
+        # Mage Talent Modifiers
+        elif tid == 105815:  # Mage Zauberstab-Spezialisierung (2/2: +13% / +25%)
+            mods["wand_dmg_mult"] += 0.13 if rk == 1 else 0.25
+        elif tid == 105779:  # Mage Verbesserter Frostblitz (5/5: -0.1s pro Rang = -100ms..-500ms)
+            mods["frostbolt_cast_reduction_ms"] += 100 * rk
+        elif tid == 105777:  # Mage Eissplitter (5/5: +20%..+100% Frost Crit Bonus)
+            mods["frost_dmg_mult"] *= 1.0 + (0.04 * rk)
+        elif tid == 105763:  # Mage Winterkälte (5/5: bis zu +10% Frost-Krit)
+            mods["frost_dmg_mult"] *= 1.0 + (0.02 * rk)
+        # Warlock Talent Modifiers
+        elif tid == 105910:  # Warlock Schattenbeherrschung (5/5: +2%..+10% Schattenschaden)
+            mods["shadow_dmg_mult"] *= 1.0 + (0.02 * rk)
+        elif tid == 110876:  # Warlock Böswilligkeit (5/5: +1%..+5% DoT Schaden)
+            mods["shadow_dmg_mult"] *= 1.0 + (0.01 * rk)
+        # Warrior Talent Modifiers
+        elif tid == 105948:  # Warrior Zweihandwaffen-Spezialisierung (3/3: +1%..+5% physischer Schaden)
+            mods["physical_dmg_mult"] *= 1.0 + (0.017 * rk)
+        elif tid == 105944:  # Warrior Waffenmeister (5/5: +1%..+5% Waffenschaden)
+            mods["physical_dmg_mult"] *= 1.0 + (0.01 * rk)
+        # Rogue Talent Modifiers
+        elif tid == 105730:  # Rogue Aggression (3/3: +2%..+6% Sinister Strike & Eviscerate dmg)
+            mods["physical_dmg_mult"] *= 1.0 + (0.02 * rk)
+        elif tid == 105740:  # Rogue Blitzender Stahl (5/5: +1%..+5% Tempo / Nahkampf-Dmg)
+            mods["physical_dmg_mult"] *= 1.0 + (0.015 * rk)
+        # Hunter Talent Modifiers
+        elif tid == 104998:  # Hunter Distanzwaffen-Spezialisierung (5/5: +1%..+5% Distanzschaden)
+            mods["physical_dmg_mult"] *= 1.0 + (0.01 * rk)
+        elif tid == 105002:  # Hunter Todbringende Schüsse (5/5: +1%..+5% Schuss-Crit)
+            mods["physical_dmg_mult"] *= 1.0 + (0.015 * rk)
+        # Paladin Talent Modifiers
+        elif tid == 105697:  # Paladin Zweihandwaffen-Spezialisierung (3/3: +2%..+6% Nahkampf-Dmg)
+            mods["physical_dmg_mult"] *= 1.0 + (0.02 * rk)
+            mods["holy_dmg_mult"] *= 1.0 + (0.01 * rk)
+        elif tid == 110882:  # Paladin Champion des Lichts (5/5: +2%..+10% Heilig- & Richturteil-Schaden)
+            mods["holy_dmg_mult"] *= 1.0 + (0.02 * rk)
+        # Shaman Talent Modifiers
+        elif tid == 104750:  # Shaman Elementarwaffen (3/3: +7%..+20% Waffen-Verzauberungseffekt)
+            mods["nature_dmg_mult"] *= 1.0 + (0.02 * rk)
+            mods["physical_dmg_mult"] *= 1.0 + (0.02 * rk)
+        elif tid == 104741:  # Shaman Waffe des Mahlstroms (5/5: Sofortzauber-Procs)
+            mods["nature_dmg_mult"] *= 1.0 + (0.025 * rk)
+        # Druid Talent Modifiers
+        elif tid == 104952:  # Druid Raubtierschläge (3/3: +Attack Power & Nahkampf-Schaden)
+            mods["physical_dmg_mult"] *= 1.0 + (0.025 * rk)
+        elif tid == 104953:  # Druid Beißen und Reißen (5/5: +4%..+20% Zerfleischen & Wilder Biss)
+            mods["physical_dmg_mult"] *= 1.0 + (0.03 * rk)
 
     return {
         "total_points": total_points,
@@ -359,6 +545,8 @@ def get_optimal_rotation(
         if nm in ("Göttliche Pein", "Heiliges Feuer"):
             cast_ms = max(0, cast_ms - mods["smite_hf_cast_reduction_ms"])
             mana *= mods["smite_hf_mana_mult"]
+        elif nm == "Frostblitz":
+            cast_ms = max(0, cast_ms - mods.get("frostbolt_cast_reduction_ms", 0))
         elif cast_ms == 0 and not is_chan:
             mana *= mods["instant_mana_mult"]
 
@@ -382,6 +570,14 @@ def get_optimal_rotation(
             dmg_mult = mods["shadow_dmg_mult"]
         elif school == "Holy":
             dmg_mult = mods["holy_dmg_mult"]
+        elif school == "Frost":
+            dmg_mult = mods.get("frost_dmg_mult", 1.0)
+        elif school == "Fire":
+            dmg_mult = mods.get("fire_dmg_mult", 1.0)
+        elif school == "Nature":
+            dmg_mult = mods.get("nature_dmg_mult", 1.0)
+        elif school in ("Physical", "Physisch"):
+            dmg_mult = mods.get("physical_dmg_mult", 1.0)
         else:
             dmg_mult = 1.0
 
@@ -472,12 +668,21 @@ def get_optimal_rotation(
     offensive_spells.sort(key=lambda x: (-x["score"], -x["dpct"]))
 
     # Calculate Wand metrics from official Blizzard API items (wf_wands) & Finisher phase
-    wand_ranks = talent_state["allocated"].get(105850, 0)
+    is_wand_user = class_name.upper() in WAND_CLASSES
+    wand_ranks = talent_state["allocated"].get(105850, 0) or talent_state["allocated"].get(105815, 0)
     wand_spec_pct = 13 if wand_ranks == 1 else (25 if wand_ranks >= 2 else 0)
-    db_wand_dps, recommended_wand, available_wands = get_recommended_wand(
-        current_level, mods["wand_dmg_mult"], db_path=db_path
-    )
-    wand_dps = wand_dps_override if wand_dps_override is not None else db_wand_dps
+    
+    if is_wand_user:
+        db_wand_dps, recommended_wand, available_wands = get_recommended_wand(
+            current_level, mods["wand_dmg_mult"], db_path=db_path
+        )
+        wand_dps = wand_dps_override if wand_dps_override is not None else db_wand_dps
+    else:
+        # Melee / Hunter / Hybrid classes don't use wands: estimate weapon auto-attack DPS
+        base_auto_dps = 4.0 + (current_level * 1.1) + ((current_level ** 1.25) * 0.08)
+        wand_dps = round(base_auto_dps * mods.get("physical_dmg_mult", 1.0), 2)
+        recommended_wand = None
+        available_wands = []
 
     # 3. Build Combat Sequence (Pre-Pull -> Opener -> Core Frontload -> FSR / Wand Finisher)
     sequence: List[Dict[str, Any]] = []
@@ -713,7 +918,7 @@ def get_optimal_rotation(
     fsr_regen_window_sec = max(0.0, round(rem_wand_sec - 5.0, 1))
 
     if rem_wand_sec > 0:
-        if wand_dps > 0:
+        if is_wand_user and wand_dps > 0:
             wand_total_dmg = round(wand_dps * rem_wand_sec, 1)
             total_expected_damage += wand_total_dmg
             wand_label = (
@@ -752,33 +957,61 @@ def get_optimal_rotation(
                     ),
                 }
             )
+        elif not is_wand_user and wand_dps > 0 and class_name.upper() not in ("WARRIOR", "ROGUE"):
+            # Hybrid / Hunter classes with Mana: auto attack finisher
+            auto_name = "Automatischer Schuss" if class_name.upper() == "HUNTER" else "Automatischer Nahkampfangriff"
+            auto_sid = 75 if class_name.upper() == "HUNTER" else 6603
+            auto_total_dmg = round(wand_dps * rem_wand_sec, 1)
+            total_expected_damage += auto_total_dmg
+            sequence.append(
+                {
+                    "phase": "Finisher / 5-Sek.-Regel (Auto-Attack)",
+                    "step": len(sequence) + 1,
+                    "timestamp_sec": fsr_switch_sec,
+                    "spell_id": auto_sid,
+                    "display_name": f"{auto_name} ({wand_dps:.1f} DPS)",
+                    "name": auto_name,
+                    "rank": f"{wand_dps:.1f} DPS",
+                    "mana_cost": 0,
+                    "exec_time_sec": rem_wand_sec,
+                    "expected_dmg": auto_total_dmg,
+                    "absorb": 0.0,
+                    "dpct": wand_dps,
+                    "dpm": 0.0,
+                    "score": 100.0,
+                    "reason": (
+                        f"Zauber-Stopp ab t={fsr_switch_sec:.1f}s für {rem_wand_sec:.1f}s Auto-Attack "
+                        f"({auto_total_dmg:.0f} Schaden für 0 Mana) zur vollen FSR-Manaregeneration!"
+                    ),
+                }
+            )
         else:
-            # Level 1-4 before wands are available: continue casting Smite or Melee finisher
-            smite = next((s for s in offensive_spells if s["name"] == "Göttliche Pein"), None)
-            if smite:
-                extra_casts = int(rem_wand_sec // smite["exec_time_sec"])
+            # Fallback filler cast for spellcasters before wand / physical classes
+            filler = next((s for s in offensive_spells if s["effective_cooldown_ms"] == 0 and s["exec_time_sec"] > 0), None)
+            if filler:
+                extra_casts = int(rem_wand_sec // filler["exec_time_sec"])
                 if extra_casts > 0:
-                    extra_dmg = round(smite["avg_dmg"] * extra_casts, 1)
-                    extra_mana = smite["effective_mana_cost"] * extra_casts
+                    extra_dmg = round(filler["avg_dmg"] * extra_casts, 1)
+                    extra_mana = filler["effective_mana_cost"] * extra_casts
                     total_expected_damage += extra_dmg
                     total_mana_used += extra_mana
                     sequence.append(
                         {
-                            "phase": "Filler / Finisher (Vor Zauberstab Lv 5)",
+                            "phase": "Filler / Finisher",
                             "step": len(sequence) + 1,
                             "timestamp_sec": fsr_switch_sec,
-                            "spell_id": smite["spell_id"],
-                            "display_name": f"{extra_casts}x {smite['display_name']}",
-                            "name": smite["name"],
-                            "rank": smite["rank"],
+                            "spell_id": filler["spell_id"],
+                            "display_name": f"{extra_casts}x {filler['display_name']}",
+                            "name": filler["name"],
+                            "rank": filler["rank"],
                             "mana_cost": extra_mana,
-                            "exec_time_sec": round(extra_casts * smite["exec_time_sec"], 1),
+                            "exec_time_sec": round(extra_casts * filler["exec_time_sec"], 1),
                             "expected_dmg": extra_dmg,
                             "absorb": 0.0,
-                            "dpct": smite["dpct"],
-                            "dpm": smite["dpm"],
-                            "score": smite["score"],
-                            "reason": "Vor Level 5 noch kein Zauberstab verfügbar – Füller bis Mob-Tod.",
+                            "dpct": filler["dpct"],
+                            "dpm": filler["dpm"],
+                            "score": filler["score"],
+                            "reason": f"Füller bis Kampfende ({extra_casts}x {filler['name']}).",
                         }
                     )
 
