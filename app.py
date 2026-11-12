@@ -506,8 +506,8 @@ with col_side:
             else ""
         )
         stats_line = (
-            f"<div style='font-size:0.82rem;color:#6ee7b7;margin-top:3px;'>✨ {rec_wand['stats_summary']}</div>"
-            if rec_wand.get("stats_summary")
+            f"<div style='font-size:0.82rem;color:#6ee7b7;margin-top:3px;'>✨ {rec_wand['bonus_stats']}</div>"
+            if rec_wand.get("bonus_stats")
             else ""
         )
         st.markdown(
@@ -519,7 +519,7 @@ with col_side:
                 </div>
                 <div style="font-size:0.84rem;color:#cbd5e1;margin-top:5px;">
                     ⚡ <b>{rec_wand['effective_dps']:.2f} Eff. DPS</b>{spec_bonus_str} &nbsp;|&nbsp;
-                    Basis: {rec_wand['dps']:.2f} DPS ({rec_wand['min_dmg']:.0f}–{rec_wand['max_dmg']:.0f} {rec_wand['dmg_type']}, {rec_wand['speed_sec']:.2f}s) &nbsp;|&nbsp;
+                    Basis: {rec_wand['dps']:.2f} DPS ({rec_wand['min_dmg']:.0f}–{rec_wand['max_dmg']:.0f} {rec_wand.get('damage_school', 'Magie')}, {rec_wand.get('speed_ms', 1500)/1000.0:.2f}s) &nbsp;|&nbsp;
                     Ab Lv <b>{rec_wand['required_level']}</b> (iLvl {rec_wand['item_level']})
                 </div>
                 {stats_line}
@@ -531,7 +531,7 @@ with col_side:
             with st.expander(f"📋 Alle {len(avail_wands)} verfügbaren Zauberstäbe bis Level {current_level} (Blizzard API)"):
                 for w in avail_wands[:8]:
                     eff_w_dps = round(w["dps"] * mods["wand_dmg_mult"], 2)
-                    st_txt = f" • *{w['stats_summary']}*" if w.get("stats_summary") else ""
+                    st_txt = f" • *{w['bonus_stats']}*" if w.get("bonus_stats") else ""
                     st.markdown(
                         f"- **Lv {w['required_level']} – [{w['name']}](https://www.wowhead.com/forever/de/item={w['item_id']})**: "
                         f"**{eff_w_dps:.1f} Eff. DPS** (Basis {w['dps']:.1f} DPS, iLvl {w['item_level']}){st_txt}"

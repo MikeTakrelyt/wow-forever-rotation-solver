@@ -18,7 +18,9 @@ MODE_WEIGHTS: Dict[str, Tuple[float, float]] = {
 }
 
 RACE_OPTIONS: Dict[str, int] = {
-    "Untoter (Scourge)": 16,
+    "Untoter (Forsaken)": 16,
+    "Orc": 2,
+    "Tauren": 32,
     "Troll": 128,
     "Mensch (Human)": 1,
     "Zwerg (Dwarf)": 4,
@@ -26,6 +28,9 @@ RACE_OPTIONS: Dict[str, int] = {
     "Gnom (Gnome)": 64,
     "Alle Völker anzeigen": 0xFFFF,
 }
+
+# Classes that can equip and use wands (Wand Finisher & Wand Card)
+WAND_CLASSES = {"PRIEST", "MAGE", "WARLOCK"}
 
 
 def get_recommended_wand(
