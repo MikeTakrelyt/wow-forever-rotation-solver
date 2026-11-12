@@ -88,12 +88,25 @@ st.markdown(
 )
 
 
-# Known Quest-unlocked spells (especially Level 10/20 Priest racial spells)
+# Verified Quest-unlocked spells (linked with Wowhead Forever & exact NPC coordinates)
 KNOWN_QUEST_SPELLS: dict[int, str] = {
-    2652: "Level-10-Klassenquest 'Im Schatten' (In Tenebris): Startet bei deinem Priesterlehrer in Brill (Pater Lankester); führt dich nach Unterstadt (Kriegerviertel) zur Banshee Aelthalyste.",
-    9035: "Level-10-Klassenquest für Trolle: Startet beim Priesterlehrer im Dorf Sen'jin / Durotar; führt nach Orgrimmar.",
-    10797: "Level-10-Klassenquest für Nachtelfen: Startet im Tempel des Mondes / Dolanaar.",
-    13908: "Level-10-Klassenquest für Menschen/Zwerge: Startet bei deinem Priesterlehrer in Goldhain/Kharanos; führt in die Kathedrale des Lichts (Sturmwind) bzw. Eisenschmiede.",
+    2652: (
+        "Level-10-Klassenquest <b>'Im Schatten'</b>:<br/>"
+        "• 📍 <b>Start:</b> <a href='https://www.wowhead.com/forever/de/npc=4607/vater-lankester' target='_blank' style='color:#67e8f9;text-decoration:underline;'>Vater Lankester</a> in <b>Unterstadt (49.4, 14.6)</b><br/>"
+        "• 🎯 <b>Abgabe:</b> <a href='https://www.wowhead.com/forever/de/npc=4606/aelthalyste' target='_blank' style='color:#67e8f9;text-decoration:underline;'>Aelthalyste</a> in <b>Unterstadt (49.6, 16.4)</b>"
+    ),
+    9035: (
+        "Level-10-Klassenquest <b>'Die Weisheit der Schwäche'</b>:<br/>"
+        "• 📍 <b>Start:</b> Tai'jin im Dorf Sen'jin (Durotar) ➔ <b>Abgabe:</b> Orgrimmar"
+    ),
+    10797: (
+        "Level-10-Klassenquest <b>'Sterne von Elune'</b>:<br/>"
+        "• 📍 <b>Start:</b> Tempel des Mondes / Dolanaar (Darnassus)"
+    ),
+    13908: (
+        "Level-10-Klassenquest <b>'Verzweifeltes Gebet'</b>:<br/>"
+        "• 📍 <b>Start:</b> Goldhain/Kharanos ➔ <b>Abgabe:</b> Kathedrale des Lichts (Sturmwind) bzw. Eisenschmiede"
+    ),
 }
 
 
@@ -388,8 +401,9 @@ with col_side:
             st.markdown(
                 f"""
                 <div class="milestone-box">
-                    <div style="font-size:1.05rem;font-weight:700;color:#fcd34d;">
-                        ✨ {sp['name']}{rk_badge}
+                    <div style="font-size:1.05rem;font-weight:700;color:#fcd34d;display:flex;justify-content:space-between;align-items:center;">
+                        <span>✨ {sp['name']}{rk_badge}</span>
+                        <a href="https://www.wowhead.com/forever/de/spell={sp['spell_id']}" target="_blank" style="font-size:0.75rem;color:#c084fc;text-decoration:none;font-weight:400;border:1px solid #4c1d95;padding:2px 6px;border-radius:4px;background:#2e1065;">🔗 Wowhead ↗</a>
                     </div>
                     <div style="font-size:0.84rem;color:#9ca3af;margin:4px 0;">
                         💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast • Schule: {sp['school']}{source_badge}
@@ -424,8 +438,9 @@ with col_side:
             st.markdown(
                 f"""
                 <div class="milestone-box">
-                    <div style="font-size:0.98rem;font-weight:700;color:#7dd3fc;">
-                        🔓 Level {sp['unlock_level']}: {sp['name']}{rk_badge}
+                    <div style="font-size:0.98rem;font-weight:700;color:#7dd3fc;display:flex;justify-content:space-between;align-items:center;">
+                        <span>🔓 Level {sp['unlock_level']}: {sp['name']}{rk_badge}</span>
+                        <a href="https://www.wowhead.com/forever/de/spell={sp['spell_id']}" target="_blank" style="font-size:0.75rem;color:#7dd3fc;text-decoration:none;font-weight:400;border:1px solid #0369a1;padding:2px 6px;border-radius:4px;background:#0c4a6e;">🔗 Wowhead ↗</a>
                     </div>
                     <div style="font-size:0.82rem;color:#9ca3af;margin:3px 0;">
                         💧 {sp['mana_cost']} Mana • ⏱️ {sp['cast_time_ms']/1000.0:.1f}s Cast{source_badge}

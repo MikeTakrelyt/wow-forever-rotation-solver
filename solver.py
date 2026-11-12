@@ -473,7 +473,7 @@ def get_optimal_rotation(
                 "reason": (
                     f"Reaktiver Volks-Buff ({prepull_buff['avg_dmg']:.0f} Schattenschaden bei Treffer)."
                     + (
-                        " (Freischaltung über Level-10-Klassenquest 'Im Schatten': Pater Lankester in Brill schickt dich zu Aelthalyste nach Unterstadt!)"
+                        " (Freischaltung über Level-10-Klassenquest 'Im Schatten': Vater Lankester ➔ Aelthalyste im Kriegerviertel von Unterstadt!)"
                         if prepull_buff.get("spell_id") == 2652
                         else ""
                     )

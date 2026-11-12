@@ -65,6 +65,19 @@ CREATE TABLE IF NOT EXISTS wf_talents (
 
 CREATE INDEX IF NOT EXISTS idx_wf_talents_class_tab
     ON wf_talents(class_name, tab_id, tier, col);
+
+CREATE TABLE IF NOT EXISTS wf_wowhead_cache (
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    locale TEXT NOT NULL DEFAULT 'de',
+    name TEXT NOT NULL,
+    zone_name TEXT DEFAULT '',
+    coords_str TEXT DEFAULT '',
+    tooltip_html TEXT DEFAULT '',
+    wowhead_url TEXT NOT NULL,
+    last_updated INTEGER NOT NULL,
+    PRIMARY KEY (entity_type, entity_id, locale)
+);
 """
 
 
