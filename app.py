@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-from database import DEFAULT_DB_PATH
+from database import DEFAULT_DB_PATH, query_class_quests
 from extractor import extract_all
 from solver import RACE_OPTIONS, get_optimal_rotation
 
@@ -155,7 +155,10 @@ def _level_down() -> None:
 # --- SIDEBAR CONTROLS ---
 with st.sidebar:
     st.markdown("## ⚙️ WoW Forever Steuerung")
-    st.caption("Datenquelle: `D:\\World of Warcraft\\_forever_` (Build `1.60.1.70888`)")
+    st.caption(
+        "Datenquellen: Offizielle **Blizzard Game Data API** (`static-forever-eu`) & "
+        "lokales CASC-Archiv (`Build 1.60.1.70888`)"
+    )
 
     class_options = {
         "Priester (Priest) ⭐": "PRIEST",
@@ -485,9 +488,58 @@ with col_side:
     else:
         st.success("Maximales Level (60) erreicht – alle Ränge freigeschaltet!")
 
+    # 2.5 Recommended Wand from Official Blizzard API (wf_wands)
+    rec_wand = result.get("recommended_wand")
+    avail_wands = result.get("available_wands", [])
+    if rec_wand:
+        st.markdown(f"### 🪄 Empfohlener Zauberstab (bis Level {current_level})")
+        w_icon = rec_wand.get("icon_url", "")
+        w_icon_html = (
+            f'<img src="{w_icon}" style="width:32px;height:32px;border-radius:5px;border:1px solid #10b981;margin-right:10px;vertical-align:middle;" />'
+            if w_icon
+            else "🪄 "
+        )
+        wand_rk = talents_info["allocated"].get(105850, 0)
+        spec_bonus_str = (
+            f" (inkl. +{13 if wand_rk == 1 else 25}% Zauberstab-Spez. {wand_rk}/2)"
+            if wand_rk > 0
+            else ""
+        )
+        stats_line = (
+            f"<div style='font-size:0.82rem;color:#6ee7b7;margin-top:3px;'>✨ {rec_wand['stats_summary']}</div>"
+            if rec_wand.get("stats_summary")
+            else ""
+        )
+        st.markdown(
+            f"""
+            <div class="milestone-box" style="border-left:4px solid #10b981;">
+                <div style="font-size:1.02rem;font-weight:700;color:#6ee7b7;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="display:flex;align-items:center;">{w_icon_html}{rec_wand['name']}</span>
+                    <a href="https://www.wowhead.com/forever/de/item={rec_wand['item_id']}" target="_blank" style="font-size:0.75rem;color:#6ee7b7;text-decoration:none;font-weight:400;border:1px solid #047857;padding:2px 6px;border-radius:4px;background:#064e3b;">🔗 Wowhead ↗</a>
+                </div>
+                <div style="font-size:0.84rem;color:#cbd5e1;margin-top:5px;">
+                    ⚡ <b>{rec_wand['effective_dps']:.2f} Eff. DPS</b>{spec_bonus_str} &nbsp;|&nbsp;
+                    Basis: {rec_wand['dps']:.2f} DPS ({rec_wand['min_dmg']:.0f}–{rec_wand['max_dmg']:.0f} {rec_wand['dmg_type']}, {rec_wand['speed_sec']:.2f}s) &nbsp;|&nbsp;
+                    Ab Lv <b>{rec_wand['required_level']}</b> (iLvl {rec_wand['item_level']})
+                </div>
+                {stats_line}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if len(avail_wands) > 1:
+            with st.expander(f"📋 Alle {len(avail_wands)} verfügbaren Zauberstäbe bis Level {current_level} (Blizzard API)"):
+                for w in avail_wands[:8]:
+                    eff_w_dps = round(w["dps"] * mods["wand_dmg_mult"], 2)
+                    st_txt = f" • *{w['stats_summary']}*" if w.get("stats_summary") else ""
+                    st.markdown(
+                        f"- **Lv {w['required_level']} – [{w['name']}](https://www.wowhead.com/forever/de/item={w['item_id']})**: "
+                        f"**{eff_w_dps:.1f} Eff. DPS** (Basis {w['dps']:.1f} DPS, iLvl {w['item_level']}){st_txt}"
+                    )
+
     # 3. Active Talents Summary
     with st.expander(
-        f"🌿 Aktive WoW Forever Talente auf Level {current_level} ({talents_info['points_spent']} Punkte)",
+        f"🌿 Aktive WoW Forever Talente auf Level {current_level} ({talents_info['points_spent']} Punkte — Offizielle Blizzard API)",
         expanded=True,
     ):
         if not mods["active_talents_list"]:

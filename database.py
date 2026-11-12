@@ -78,6 +78,34 @@ CREATE TABLE IF NOT EXISTS wf_wowhead_cache (
     last_updated INTEGER NOT NULL,
     PRIMARY KEY (entity_type, entity_id, locale)
 );
+
+CREATE TABLE IF NOT EXISTS wf_wands (
+    item_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    quality TEXT NOT NULL DEFAULT 'COMMON',
+    required_level INTEGER NOT NULL DEFAULT 1,
+    item_level INTEGER NOT NULL DEFAULT 1,
+    dps REAL NOT NULL DEFAULT 0.0,
+    min_dmg REAL NOT NULL DEFAULT 0.0,
+    max_dmg REAL NOT NULL DEFAULT 0.0,
+    speed_ms INTEGER NOT NULL DEFAULT 1500,
+    damage_school TEXT NOT NULL DEFAULT 'Physical',
+    bonus_stats TEXT DEFAULT '',
+    binding TEXT DEFAULT '',
+    icon_url TEXT DEFAULT '',
+    source_hint TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS wf_class_quests (
+    quest_id INTEGER PRIMARY KEY,
+    class_name TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    reward_spell_id INTEGER DEFAULT 0,
+    reward_spell_name TEXT DEFAULT '',
+    race_name TEXT DEFAULT '',
+    race_mask INTEGER DEFAULT 0
+);
 """
 
 
@@ -147,5 +175,55 @@ def query_talents(
             (class_name,),
         )
         return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def query_wands(
+    max_level: Optional[int] = None,
+    db_path: str = DEFAULT_DB_PATH,
+) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        if max_level is not None:
+            cur = conn.execute(
+                """
+                SELECT * FROM wf_wands
+                WHERE required_level <= ?
+                ORDER BY dps DESC, item_level DESC, required_level DESC
+                """,
+                (max_level,),
+            )
+        else:
+            cur = conn.execute(
+                """
+                SELECT * FROM wf_wands
+                ORDER BY required_level ASC, dps DESC, item_level DESC
+                """
+            )
+        return [dict(row) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+def query_class_quests(
+    class_name: str,
+    db_path: str = DEFAULT_DB_PATH,
+) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.execute(
+            """
+            SELECT * FROM wf_class_quests
+            WHERE UPPER(class_name) = UPPER(?)
+            ORDER BY quest_id ASC
+            """,
+            (class_name,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []
     finally:
         conn.close()

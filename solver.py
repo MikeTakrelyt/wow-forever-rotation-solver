@@ -8,7 +8,7 @@ strictly from the extracted wow_forever.db data.
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from database import DEFAULT_DB_PATH, query_spells, query_talents
+from database import DEFAULT_DB_PATH, query_class_quests, query_spells, query_talents, query_wands
 
 
 MODE_WEIGHTS: Dict[str, Tuple[float, float]] = {
@@ -28,17 +28,29 @@ RACE_OPTIONS: Dict[str, int] = {
 }
 
 
-def estimate_wand_dps(level: int, wand_spec_ranks: int = 0) -> float:
+def get_recommended_wand(
+    level: int,
+    wand_dmg_mult: float = 1.0,
+    db_path: str = DEFAULT_DB_PATH,
+) -> Tuple[float, Optional[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Baseline progression curve for typical leveling wands (Level 5 Greater Magic Wand -> Level 60 Epic/Rare Wand),
-    scaled by Discipline 'Zauberstab-Spezialisierung' (+5% per rank, up to +25%).
+    Look up the official WoW Forever wands available up to `level` from `wf_wands`
+    (synced from the official Blizzard Game Data API) and scale DPS by `wand_dmg_mult`
+    (Zauberstab-Spezialisierung: Rank 1 = +13%, Rank 2 = +25%).
     """
+    wands = query_wands(max_level=level, db_path=db_path)
+    if wands:
+        # wands are ordered by required_level DESC, dps DESC, item_level DESC
+        # Pick the highest DPS wand available at or below current_level
+        best_wand = max(wands, key=lambda w: (w["dps"], w["required_level"]))
+        rec = dict(best_wand)
+        rec["effective_dps"] = round(rec["dps"] * wand_dmg_mult, 2)
+        return rec["effective_dps"], rec, wands
+
     if level < 5:
-        return 0.0
-    # Smooth progression matching Classic/Forever wand itemization (Lv5 ~11.5 DPS, Lv13 ~17.5, Lv30 ~32, Lv45 ~50, Lv60 ~72)
+        return 0.0, None, []
     base_dps = 6.5 + (level * 0.95) + ((level ** 1.25) * 0.08)
-    mult = 1.0 + (0.05 * wand_spec_ranks)
-    return round(base_dps * mult, 2)
+    return round(base_dps * wand_dmg_mult, 2), None, []
 
 
 def allocate_talents_for_level(
@@ -49,7 +61,7 @@ def allocate_talents_for_level(
 ) -> Dict[str, Any]:
     """
     Allocate available talent points (1 point per level starting at Level 10, up to 51 points at Level 60)
-    using the real WoW Forever talent trees from wf_talents.
+    using the official Blizzard API talent trees stored in wf_talents (`static-forever-eu`).
     Returns active talent ranks, unlocked spell IDs, and numerical modifiers.
     """
     total_points = max(0, min(60, current_level) - 9)
@@ -60,65 +72,86 @@ def allocate_talents_for_level(
     points_left = total_points
 
     if class_name.upper() == "PRIEST" and total_points > 0:
-        # Determine priority order of talent_ids based on leveling profile
+        # Official Blizzard API Node IDs for WoW Forever Priest (/data/wow/talent-tree/1114):
         if spec_profile == "holy_smite":
-            # Discipline Wand Spec (345) -> Holy Divine Fury (1181) -> Searing Light (403) -> Mental Agility (341) -> Force of Will (1202)
+            # Discipline Wand Spec 2/2 (105850) + Macht im Licht (110853) + Göttlicher Furor (105863) + Sühne (105834)
             priority_order = [
-                (345, 5),   # Zauberstab-Spezialisierung (+25% Wand)
-                (1181, 5),  # Göttlicher Furor (-0.5s Smite/Holy Fire cast time)
-                (401, 5),   # Heiligspezialisierung (+5% Holy crit)
-                (442, 1),   # Heilige Nova (AoE unlock)
-                (403, 2),   # Sengendes Licht (+10% Smite/Holy Fire/Penance/Nova dmg)
-                (1635, 2),  # Heilige Reichweite
-                (402, 5),   # Geistige Führung (+Spell dmg from Spirit)
-                (343, 3),   # Verbessertes Machtwort: Schild (+15% Absorb)
-                (347, 3),   # Meditation (+15% Spirit regen in combat)
-                (348, 1),   # Innerer Fokus
-                (341, 5),   # Mentale Beweglichkeit (-10% Mana on Instant + Smite + Holy Fire in WoW Forever!)
-                (1201, 5),  # Mentale Stärke (+10% Max Mana)
-                (1202, 5),  # Macht des Willens (+5% Spell Dmg & Crit)
-                (322, 1),   # Seele der Macht
+                (105850, 2),  # T0 Disc: Zauberstab-Spezialisierung 2/2 (+13% / +25% Wand dmg)
+                (110853, 3),  # T0 Disc: Macht im Licht 3/5 (+6% Smite & Penance dmg)
+                (105863, 5),  # T1 Holy: Göttlicher Furor 5/5 (-0.5s Smite/Holy Fire cast time)
+                (110855, 5),  # T0 Holy: Heiligspezialisierung 5/5 (+5% Holy crit)
+                (105862, 1),  # T1 Holy: Heilige Nova 1/1 (AoE unlock)
+                (105858, 3),  # T2 Holy: Verbesserte Heilung 3/3 (-15% mana on heals & Penance)
+                (105857, 2),  # T2 Holy: Sengendes Licht 2/2 (+5% Holy dmg)
+                (105859, 2),  # T2 Holy: Heilige Reichweite 2/2 (+20% Holy range)
+                (105849, 3),  # T0 Disc: Zwillingsdisziplinen 3/5 (+3% Instant dmg/heal)
+                (105846, 3),  # T1 Disc: Verbessertes Machtwort: Schild 3/3 (+20% Absorb)
+                (105842, 3),  # T1 Disc: Mentale Beweglichkeit 3/3 (-10% Mana on Smite, Holy Fire, Instants)
+                (105843, 3),  # T2 Disc: Meditation 3/3 (50% mana regen while casting)
+                (105844, 1),  # T2 Disc: Innerer Fokus 1/1
+                (105839, 1),  # T3 Disc: Seelenwehr 1/1 (-4s CD & -15% Mana on PW:S)
+                (110853, 5),  # T0 Disc: Finish Macht im Licht 5/5 (+10% Smite & Penance dmg)
+                (105834, 1),  # T4 Disc: Sühne 1/1 (Unlocks Penance 402174!)
+                (105853, 5),  # T4 Holy: Geistige Führung 5/5
+                (105837, 5),  # T1 Disc: Mentale Stärke 5/5 (+10% Intellect)
+                (105836, 1),  # T6 Disc: Seele der Macht 1/1
             ]
         else:
-            # Default 'auto' / 'shadow_leveling':
-            # Lv 10-19: Zauberstab-Spezialisierung 5/5 (345) + Willensentzug 5/5 (465) or Verb. SW:S 2/2 (482)
-            # Lv 20+: Shadow tree for Gedankenschinden (501), Verb. Gedankenschlag (481), Schattenwirken (461),
-            # Dunkelheit (462), and at Lv 40+ respec/push directly into Schattengestalt (521) (-50% Shadow mana & +10% Shadow dmg)!
+            # Default 'auto' / 'shadow_leveling' using official WoW Forever node IDs:
+            # Zauberstab-Spezialisierung (105850) has max_rank=2 (+13% / +25% Wand dmg)!
             if current_level >= 40:
-                # At Level 40+, 30 points in Shadow + 31st point in Schattengestalt (521) (-50% Shadow mana & +10% Shadow dmg!)
+                # At Level 40+, 30 points in Shadow + 31st point in Schattengestalt (105817) (-50% Shadow mana & +10% Shadow dmg!)
                 priority_order = [
-                    (465, 5),  # T0: Willensentzug 5/5 (5 pts)
-                    (482, 2),  # T1: Verbessertes Schattenwort: Schmerz 2/2 (7 pts)
-                    (463, 3),  # T1: Schattenfokus 3/5 (10 pts)
-                    (501, 1),  # T2: Gedankenschinden 1/1 (11 pts)
-                    (481, 4),  # T2: Verbesserter Gedankenschlag 4/5 (15 pts)
-                    (461, 5),  # T3: Schattenwirken 5/5 (20 pts)
-                    (484, 1),  # T4: Vampirumarmung 1/1 (21 pts)
-                    (1638, 2), # T4: Verbesserte Vampirumarmung 2/2 (23 pts)
-                    (881, 2),  # T3: Schattenreichweite 2/3 (25 pts)
-                    (462, 5),  # T5: Dunkelheit 5/5 (30 pts)
-                    (521, 1),  # T6: Schattengestalt 1/1 (31 pts -> Unlocked at Level 40!)
+                    (105833, 5),  # T0 Shadow: Willensentzug 5/5 (5 pts)
+                    (105830, 2),  # T1 Shadow: Verbessertes Schattenwort: Schmerz 2/2 (7 pts)
+                    (105831, 3),  # T1 Shadow: Verbesserter Gedankenschlag 3/5 (10 pts)
+                    (105826, 1),  # T2 Shadow: Gedankenschinden 1/1 (11 pts)
+                    (105825, 2),  # T2 Shadow: Verbessertes Gedankenschinden 2/2 (13 pts)
+                    (105829, 2),  # T1 Shadow: Schattenreichweite 2/2 (15 pts)
+                    (105820, 1),  # T3 Shadow: Vampirumarmung 1/1 (16 pts)
+                    (105821, 3),  # T3 Shadow: Schattenwirken 3/3 (19 pts)
+                    (105831, 5),  # T1 Shadow: Finish Verbesserter Gedankenschlag 5/5 (21 pts)
+                    (105819, 2),  # T4 Shadow: Verschlingende Ansteckung 2/2 (23 pts)
+                    (110854, 2),  # T4 Shadow: Vorzeitiges Ableben 2/2 (25 pts)
+                    (105818, 5),  # T5 Shadow: Dunkelheit 5/5 (30 pts)
+                    (105817, 1),  # T6 Shadow: Schattengestalt 1/1 (31 pts -> Unlocked at Level 40!)
                     # Remaining points (Lv 41-60) into Discipline:
-                    (345, 5),  # T0: Zauberstab-Spezialisierung 5/5 (+25% Wand dmg)
-                    (342, 2),  # T0: Unbezwingbarer Wille 2/5
-                    (343, 3),  # T1: Verbessertes Machtwort: Schild 3/3 (+15% Absorb)
-                    (347, 3),  # T2: Meditation 3/3
-                    (348, 1),  # T2: Innerer Fokus 1/1
-                    (341, 5),  # T3: Mentale Beweglichkeit 5/5 (-10% Instant/Smite/HF mana)
-                    (481, 5),  # Finish Verbesserter Gedankenschlag 5/5
+                    (105850, 2),  # T0 Disc: Zauberstab-Spezialisierung 2/2 (+25% Wand dmg)
+                    (105849, 5),  # T0 Disc: Zwillingsdisziplinen 5/5 (+5% Instant dmg/heal)
+                    (105846, 3),  # T1 Disc: Verbessertes Machtwort: Schild 3/3 (+20% Absorb)
+                    (105842, 3),  # T1 Disc: Mentale Beweglichkeit 3/3 (-10% Instant/Smite/HF mana)
+                    (105843, 3),  # T2 Disc: Meditation 3/3 (50% Spirit regen while casting)
+                    (105844, 1),  # T2 Disc: Innerer Fokus 1/1
+                    (105839, 1),  # T3 Disc: Seelenwehr 1/1 (-4s CD & -15% Mana on PW:S)
+                    (105837, 2),  # T1 Disc: Mentale Stärke 2/5
                 ]
             else:
-                # Lv 10-39 Optimal Leveling Progression: Wand Spec -> Spirit Tap -> Imp SW:P -> Mind Flay -> Shadow Weaving -> Darkness
+                # Lv 10-39 Optimal Leveling Progression:
+                # Lv 10-11: Zauberstab-Spezialisierung 2/2 (+13% / +25% Wand dmg)
+                # Lv 12-16: Willensentzug 5/5
+                # Lv 17-18: Verbessertes Schattenwort: Schmerz 2/2
+                # Lv 19-21: Verbesserter Gedankenschlag 3/5
+                # Lv 22:    Gedankenschinden 1/1
+                # Lv 23-24: Verbessertes Gedankenschinden 2/2
+                # Lv 25-26: Schattenreichweite 2/2
+                # Lv 27:    Vampirumarmung 1/1
+                # Lv 28-30: Schattenwirken 3/3
+                # Lv 31-32: Verbesserter Gedankenschlag 5/5
+                # Lv 33-34: Verschlingende Ansteckung 2/2
+                # Lv 35-39: Dunkelheit 5/5
                 priority_order = [
-                    (345, 5),  # T0 Disc: Zauberstab-Spezialisierung 5/5 (Lv 10-14)
-                    (465, 5),  # T0 Shadow: Willensentzug 5/5 (Lv 15-19)
-                    (482, 2),  # T1 Shadow: Verbessertes Schattenwort: Schmerz 2/2 (Lv 20-21)
-                    (463, 3),  # T1 Shadow: Schattenfokus 3/5 (Lv 22-24)
-                    (501, 1),  # T2 Shadow: Gedankenschinden 1/1 (Lv 25)
-                    (481, 4),  # T2 Shadow: Verbesserter Gedankenschlag 4/5 (Lv 26-29)
-                    (461, 5),  # T3 Shadow: Schattenwirken 5/5 (Lv 30-34)
-                    (484, 1),  # T4 Shadow: Vampirumarmung 1/1 (Lv 35)
-                    (462, 4),  # T5 Shadow: Dunkelheit 4/5 (Lv 36-39)
+                    (105850, 2),  # T0 Disc: Zauberstab-Spezialisierung 2/2 (Lv 10-11)
+                    (105833, 5),  # T0 Shadow: Willensentzug 5/5 (Lv 12-16)
+                    (105830, 2),  # T1 Shadow: Verbessertes Schattenwort: Schmerz 2/2 (Lv 17-18)
+                    (105831, 3),  # T1 Shadow: Verbesserter Gedankenschlag 3/5 (Lv 19-21)
+                    (105826, 1),  # T2 Shadow: Gedankenschinden 1/1 (Lv 22)
+                    (105825, 2),  # T2 Shadow: Verbessertes Gedankenschinden 2/2 (Lv 23-24)
+                    (105829, 2),  # T1 Shadow: Schattenreichweite 2/2 (Lv 25-26)
+                    (105820, 1),  # T3 Shadow: Vampirumarmung 1/1 (Lv 27)
+                    (105821, 3),  # T3 Shadow: Schattenwirken 3/3 (Lv 28-30)
+                    (105831, 5),  # T1 Shadow: Finish Verbesserter Gedankenschlag 5/5 (Lv 31-32)
+                    (105819, 2),  # T4 Shadow: Verschlingende Ansteckung 2/2 (Lv 33-34)
+                    (105818, 5),  # T5 Shadow: Dunkelheit 5/5 (Lv 35-39)
                 ]
 
         for tid, target_rk in priority_order:
@@ -134,17 +167,23 @@ def allocate_talents_for_level(
                 allocated[tid] = cur_rk + spend
                 points_left -= spend
 
-    # Compute exact modifiers from allocated talents (reading effect_summary_json from wf_talents)
+    # Compute exact modifiers from allocated official Blizzard API talents
     mods: Dict[str, Any] = {
         "wand_dmg_mult": 1.0,
         "shadow_dmg_mult": 1.0,
         "holy_dmg_mult": 1.0,
+        "instant_dmg_mult": 1.0,
+        "smite_penance_dmg_mult": 1.0,
+        "mind_flay_dmg_mult": 1.0,
         "swp_extra_duration_ms": 0,
         "mind_blast_cd_reduction_ms": 0,
         "smite_hf_cast_reduction_ms": 0,
         "shadow_mana_mult": 1.0,
         "instant_mana_mult": 1.0,
         "smite_hf_mana_mult": 1.0,
+        "penance_mana_mult": 1.0,
+        "devouring_plague_mana_mult": 1.0,
+        "pws_mana_mult": 1.0,
         "pws_absorb_mult": 1.0,
         "shadowform_active": False,
         "spirit_tap_active": False,
@@ -157,9 +196,12 @@ def allocate_talents_for_level(
         if rk <= 0 or tid not in talent_by_id:
             continue
         t = talent_by_id[tid]
-        eff_list = json.loads(t["effect_summary_json"])
-        rk_eff = eff_list[min(rk - 1, len(eff_list) - 1)] if eff_list else {}
-        e0_base = float(rk_eff.get("0", {}).get("base", 0.0))
+        eff_list = json.loads(t["effect_summary_json"]) if t.get("effect_summary_json") else []
+        rk_desc = t["description_raw"]
+        if isinstance(eff_list, list) and eff_list:
+            rk_entry = eff_list[min(rk - 1, len(eff_list) - 1)]
+            if isinstance(rk_entry, dict) and rk_entry.get("description"):
+                rk_desc = rk_entry["description"]
 
         mods["active_talents_list"].append(
             {
@@ -168,46 +210,54 @@ def allocate_talents_for_level(
                 "tab_name": t["tab_name"],
                 "rank": rk,
                 "max_rank": t["max_rank"],
-                "description": t["description_raw"],
+                "description": rk_desc,
             }
         )
 
-        if tid == 345:  # Zauberstab-Spezialisierung (+5% per rank)
-            mods["wand_dmg_mult"] += (e0_base if e0_base > 0 else 5.0 * rk) / 100.0
-        elif tid == 465:  # Willensentzug
-            mods["spirit_tap_active"] = True
-        elif tid == 482:  # Verbessertes Schattenwort: Schmerz (+3000ms / +6000ms)
-            mods["swp_extra_duration_ms"] += int(e0_base if e0_base > 0 else 3000 * rk)
-        elif tid == 481:  # Verbesserter Gedankenschlag (-500ms per rank)
-            mods["mind_blast_cd_reduction_ms"] += int(abs(e0_base) if e0_base != 0 else 500 * rk)
-        elif tid == 461:  # Schattenwirken (up to 5 stacks of +3% = +15% at 5/5, scaled by proc chance)
-            proc_chance = (e0_base if e0_base > 0 else 20.0 * rk) / 100.0
-            # Average effective multiplier over a 15s single-target fight (~0.65 of max 15% stack)
-            mods["shadow_dmg_mult"] *= 1.0 + (0.12 * proc_chance)
-        elif tid == 462:  # Dunkelheit (+2% per rank)
-            mods["shadow_dmg_mult"] *= 1.0 + ((e0_base if e0_base > 0 else 2.0 * rk) / 100.0)
-        elif tid == 521:  # Schattengestalt (WoW Forever: +10% Shadow dmg, -50% Shadow mana, +100% crit bonus!)
-            e1_base = float(rk_eff.get("1", {}).get("base", 10.0))
-            e3_base = float(rk_eff.get("3", {}).get("base", -50.0))
-            mods["shadow_dmg_mult"] *= 1.0 + (abs(e1_base) / 100.0)
-            mods["shadow_mana_mult"] *= 1.0 - (abs(e3_base) / 100.0)
-            mods["shadowform_active"] = True
-        elif tid == 1181:  # Göttlicher Furor (-100ms per rank on Smite/Holy Fire)
-            mods["smite_hf_cast_reduction_ms"] += int(abs(e0_base) if e0_base != 0 else 100 * rk)
-        elif tid == 403:  # Sengendes Licht (+5% per rank on Holy)
-            mods["holy_dmg_mult"] *= 1.0 + ((e0_base if e0_base > 0 else 5.0 * rk) / 100.0)
-        elif tid == 341:  # Mentale Beweglichkeit (-2% per rank on Instant AND Smite/Holy Fire in WoW Forever!)
-            red = (abs(e0_base) if e0_base != 0 else 2.0 * rk) / 100.0
+        # Official WoW Forever talent modifiers (verified from /data/wow/talent-tree/1114)
+        if tid == 105850:  # Zauberstab-Spezialisierung (2/2: Rank 1 = +13%, Rank 2 = +25%)
+            mods["wand_dmg_mult"] += 0.13 if rk == 1 else 0.25
+        elif tid == 110853:  # Macht im Licht (5/5: +2%/4%/6%/8%/10% Smite & Penance dmg)
+            mods["smite_penance_dmg_mult"] *= 1.0 + (0.02 * rk)
+        elif tid == 105849:  # Zwillingsdisziplinen (5/5: +1%..+5% Instant dmg & healing)
+            mods["instant_dmg_mult"] *= 1.0 + (0.01 * rk)
+            mods["pws_absorb_mult"] *= 1.0 + (0.01 * rk)
+        elif tid == 105846:  # Verbessertes Machtwort: Schild (3/3: +7% / +13% / +20% Absorb)
+            pws_bonus = {1: 0.07, 2: 0.13, 3: 0.20}.get(rk, 0.07 * rk)
+            mods["pws_absorb_mult"] *= 1.0 + pws_bonus
+        elif tid == 105842:  # Mentale Beweglichkeit (3/3: -3% / -6% / -10% Mana on Smite, Holy Fire, Instants)
+            red = {1: 0.03, 2: 0.06, 3: 0.10}.get(rk, 0.03 * rk)
             mods["instant_mana_mult"] *= 1.0 - red
             mods["smite_hf_mana_mult"] *= 1.0 - red
-        elif tid == 343:  # Verbessertes Machtwort: Schild (+5% per rank)
-            mods["pws_absorb_mult"] *= 1.0 + ((e0_base if e0_base > 0 else 5.0 * rk) / 100.0)
-        elif tid == 347:  # Meditation (+5% per rank)
-            mods["meditation_regen_pct"] += e0_base if e0_base > 0 else 5.0 * rk
-        elif tid == 1202:  # Macht des Willens (+1% spell dmg & crit per rank)
-            e1_base = float(rk_eff.get("1", {}).get("base", float(rk)))
-            mods["holy_dmg_mult"] *= 1.0 + (abs(e1_base) / 100.0)
-            mods["shadow_dmg_mult"] *= 1.0 + (abs(e1_base) / 100.0)
+        elif tid == 105843:  # Meditation (3/3: 17% / 33% / 50% Spirit regen while casting)
+            mods["meditation_regen_pct"] += {1: 17.0, 2: 33.0, 3: 50.0}.get(rk, 17.0 * rk)
+        elif tid == 105839:  # Seelenwehr (1/1: -4s CD & -15% Mana on PW:S)
+            mods["pws_mana_mult"] *= 0.85
+        elif tid == 105863:  # Göttlicher Furor (5/5: -100ms per rank on Smite/Holy Fire)
+            mods["smite_hf_cast_reduction_ms"] += 100 * rk
+        elif tid == 105858:  # Verbesserte Heilung (3/3: -5%/-10%/-15% Mana on heals & Penance)
+            mods["penance_mana_mult"] *= 1.0 - (0.05 * rk)
+        elif tid == 105857:  # Sengendes Licht (2/2: +3% / +5% Holy dmg)
+            mods["holy_dmg_mult"] *= 1.0 + ({1: 0.03, 2: 0.05}.get(rk, 0.03 * rk))
+        elif tid == 105833:  # Willensentzug (5/5)
+            mods["spirit_tap_active"] = True
+        elif tid == 105830:  # Verbessertes Schattenwort: Schmerz (2/2: +3000ms / +6000ms)
+            mods["swp_extra_duration_ms"] += 3000 * rk
+        elif tid == 105831:  # Verbesserter Gedankenschlag (5/5: -500ms per rank)
+            mods["mind_blast_cd_reduction_ms"] += 500 * rk
+        elif tid == 105825:  # Verbessertes Gedankenschinden (2/2: +10% / +20% per subsequent tick -> +10% / +20% avg dmg)
+            mods["mind_flay_dmg_mult"] *= 1.0 + (0.10 * rk)
+        elif tid == 105821:  # Schattenwirken (3/3: 33%/66%/100% chance for +2% Shadow dmg up to 5 stacks = +10%)
+            proc_chance = {1: 0.33, 2: 0.66, 3: 1.00}.get(rk, 0.33 * rk)
+            mods["shadow_dmg_mult"] *= 1.0 + (0.08 * proc_chance)
+        elif tid == 105819:  # Verschlingende Ansteckung (2/2: -25% / -50% Mana on Devouring Plague)
+            mods["devouring_plague_mana_mult"] *= 1.0 - (0.25 * rk)
+        elif tid == 105818:  # Dunkelheit (5/5: +2% per rank Shadow dmg)
+            mods["shadow_dmg_mult"] *= 1.0 + (0.02 * rk)
+        elif tid == 105817:  # Schattengestalt (1/1: +10% Shadow dmg, -50% Shadow mana, +100% crit dmg bonus)
+            mods["shadow_dmg_mult"] *= 1.10
+            mods["shadow_mana_mult"] *= 0.50
+            mods["shadowform_active"] = True
 
     return {
         "total_points": total_points,
@@ -307,6 +357,13 @@ def get_optimal_rotation(
         elif cast_ms == 0 and not is_chan:
             mana *= mods["instant_mana_mult"]
 
+        if nm == "Sühne":
+            mana *= mods["penance_mana_mult"]
+        elif nm == "Verschlingende Seuche":
+            mana *= mods["devouring_plague_mana_mult"]
+        elif nm == "Machtwort: Schild":
+            mana *= mods["pws_mana_mult"]
+
         if nm == "Gedankenschlag":
             cd_ms = max(0, cd_ms - mods["mind_blast_cd_reduction_ms"])
 
@@ -322,6 +379,13 @@ def get_optimal_rotation(
             dmg_mult = mods["holy_dmg_mult"]
         else:
             dmg_mult = 1.0
+
+        if cast_ms == 0 and not is_chan:
+            dmg_mult *= mods["instant_dmg_mult"]
+        if nm in ("Göttliche Pein", "Sühne"):
+            dmg_mult *= mods["smite_penance_dmg_mult"]
+        if nm == "Gedankenschinden":
+            dmg_mult *= mods["mind_flay_dmg_mult"]
 
         if nm == "Machtwort: Schild":
             absorb *= mods["pws_absorb_mult"]
@@ -402,13 +466,13 @@ def get_optimal_rotation(
 
     offensive_spells.sort(key=lambda x: (-x["score"], -x["dpct"]))
 
-    # Calculate Wand metrics for comparison & Finisher phase
-    wand_Ranks = talent_state["allocated"].get(345, 0)
-    wand_dps = (
-        wand_dps_override
-        if wand_dps_override is not None
-        else estimate_wand_dps(current_level, wand_Ranks)
+    # Calculate Wand metrics from official Blizzard API items (wf_wands) & Finisher phase
+    wand_ranks = talent_state["allocated"].get(105850, 0)
+    wand_spec_pct = 13 if wand_ranks == 1 else (25 if wand_ranks >= 2 else 0)
+    db_wand_dps, recommended_wand, available_wands = get_recommended_wand(
+        current_level, mods["wand_dmg_mult"], db_path=db_path
     )
+    wand_dps = wand_dps_override if wand_dps_override is not None else db_wand_dps
 
     # 3. Build Combat Sequence (Pre-Pull -> Opener -> Core Frontload -> FSR / Wand Finisher)
     sequence: List[Dict[str, Any]] = []
@@ -647,15 +711,20 @@ def get_optimal_rotation(
         if wand_dps > 0:
             wand_total_dmg = round(wand_dps * rem_wand_sec, 1)
             total_expected_damage += wand_total_dmg
+            wand_label = (
+                f"Zauberstab: {recommended_wand['name']}"
+                if recommended_wand and wand_dps_override is None
+                else "Zauberstab (Wand)"
+            )
+            if wand_spec_pct > 0:
+                wand_label += f" (+{wand_spec_pct}% Spez.)"
             sequence.append(
                 {
                     "phase": "Finisher / 5-Sek.-Regel (FSR)",
                     "step": len(sequence) + 1,
                     "timestamp_sec": fsr_switch_sec,
                     "spell_id": 5019,
-                    "display_name": (
-                        f"Zauberstab (Wand){f' +{wand_Ranks*5}% Spez.' if wand_Ranks else ''}"
-                    ),
+                    "display_name": wand_label,
                     "name": "Zauberstab",
                     "rank": f"{wand_dps:.1f} DPS",
                     "mana_cost": 0,
@@ -665,6 +734,11 @@ def get_optimal_rotation(
                     "dpct": wand_dps,
                     "dpm": 0.0,
                     "score": 100.0,
+                    "custom_icon_url": (
+                        recommended_wand.get("icon_url", "")
+                        if recommended_wand
+                        else ""
+                    ),
                     "reason": (
                         f"Zauber-Stopp ab t={fsr_switch_sec:.1f}s für {rem_wand_sec:.1f}s Zauberstab-Phase "
                         f"({wand_total_dmg:.0f} Schaden für 0 Mana). "
@@ -735,7 +809,7 @@ def get_optimal_rotation(
         sid = step.get("spell_id", 0)
         fdid = fdid_by_spell_id.get(sid, 135139 if sid == 5019 else 0)
         step["icon_fdid"] = fdid
-        step["icon_url"] = (
+        step["icon_url"] = step.get("custom_icon_url") or (
             f"https://render.worldofwarcraft.com/eu/icons/56/{fdid}.jpg" if fdid > 0 else ""
         )
 
@@ -775,6 +849,8 @@ def get_optimal_rotation(
         "mode": mode,
         "weights": {"dpct": round(w_dpct, 2), "dpm": round(w_dpm, 2)},
         "wand_dps": wand_dps,
+        "recommended_wand": recommended_wand,
+        "available_wands": available_wands,
         "talents": talent_state,
         "sequence": sequence,
         "summary": {
