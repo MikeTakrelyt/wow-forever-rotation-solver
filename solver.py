@@ -403,6 +403,10 @@ def allocate_talents_for_level(
             mods["devouring_plague_mana_mult"] *= 1.0 - (0.25 * rk)
         elif tid == 105818:  # Dunkelheit (5/5: +2% per rank Shadow dmg)
             mods["shadow_dmg_mult"] *= 1.0 + (0.02 * rk)
+        elif tid == 105817:  # Schattengestalt (1/1: +10% Shadow dmg, -50% Shadow mana, +100% crit dmg bonus)
+            mods["shadow_dmg_mult"] *= 1.10
+            mods["shadow_mana_mult"] *= 0.50
+            mods["shadowform_active"] = True
         # Mage Talent Modifiers
         elif tid == 105815:  # Mage Zauberstab-Spezialisierung (2/2: +13% / +25%)
             mods["wand_dmg_mult"] += 0.13 if rk == 1 else 0.25
