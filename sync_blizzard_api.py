@@ -264,63 +264,86 @@ def sync_wands(blizz: BlizzardAPI, db_path: str = DEFAULT_DB_PATH) -> int:
     return len(wand_rows)
 
 
-def sync_priest_quests(blizz: BlizzardAPI, db_path: str = DEFAULT_DB_PATH) -> int:
-    print("[Sync] Lade Priester-Klassenquests (/data/wow/quest/category/262) ...")
-    cat = blizz.query("/data/wow/quest/category/262")
-    if not cat or "quests" not in cat:
-        return 0
+CLASS_QUEST_CATEGORIES: Dict[str, int] = {
+    "WARLOCK": 61,
+    "WARRIOR": 81,
+    "SHAMAN": 82,
+    "PALADIN": 141,
+    "MAGE": 161,
+    "ROGUE": 162,
+    "HUNTER": 261,
+    "PRIEST": 262,
+    "DRUID": 263,
+}
 
-    quest_rows: List[Tuple[Any, ...]] = []
-    for q_ref in cat["quests"]:
-        qid = int(q_ref.get("id", 0))
-        qname = q_ref.get("name")
-        if not qid or not qname:
-            continue
 
-        qdata = blizz.query(f"/data/wow/quest/{qid}")
-        if not qdata:
-            continue
-
-        title = qdata.get("title", qname)
-        desc = qdata.get("description", "")
-        rew_spell = qdata.get("rewards", {}).get("spell", {})
-        rew_sid = int(rew_spell.get("id", 0)) if rew_spell else 0
-        rew_sname = rew_spell.get("name", "") if rew_spell else ""
-
-        races = qdata.get("requirements", {}).get("races", [])
-        race_names = [r.get("name", "") for r in races]
-        rmask = 0
-        for r in races:
-            rmask |= RACE_ID_TO_MASK.get(int(r.get("id", 0)), 0)
-
-        quest_rows.append(
-            (
-                qid,
-                "PRIEST",
-                title,
-                desc,
-                rew_sid,
-                rew_sname,
-                ", ".join(race_names),
-                rmask,
-            )
-        )
-
+def sync_all_class_quests(blizz: BlizzardAPI, db_path: str = DEFAULT_DB_PATH) -> int:
+    """
+    Sync official class quests for all 9 classes from Blizzard API (/data/wow/quest/category/{id}).
+    """
+    total_quests = 0
     conn = get_connection(db_path)
     with conn:
-        conn.execute("DELETE FROM wf_class_quests WHERE class_name='PRIEST';")
-        conn.executemany(
-            """
-            INSERT OR REPLACE INTO wf_class_quests (
-                quest_id, class_name, title, description,
-                reward_spell_id, reward_spell_name, race_name, race_mask
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            quest_rows,
-        )
+        conn.execute("DELETE FROM wf_class_quests;")
+
+    for cls_name, cat_id in CLASS_QUEST_CATEGORIES.items():
+        print(f"[Sync] Lade {cls_name}-Klassenquests (/data/wow/quest/category/{cat_id}) ...")
+        cat = blizz.query(f"/data/wow/quest/category/{cat_id}")
+        if not cat or "quests" not in cat:
+            continue
+
+        quest_rows: List[Tuple[Any, ...]] = []
+        for q_ref in cat["quests"]:
+            qid = int(q_ref.get("id", 0))
+            qname = q_ref.get("name")
+            if not qid or not qname:
+                continue
+
+            qdata = blizz.query(f"/data/wow/quest/{qid}")
+            if not qdata:
+                continue
+
+            title = qdata.get("title", qname)
+            desc = qdata.get("description", "")
+            rew_spell = qdata.get("rewards", {}).get("spell", {})
+            rew_sid = int(rew_spell.get("id", 0)) if rew_spell else 0
+            rew_sname = rew_spell.get("name", "") if rew_spell else ""
+
+            races = qdata.get("requirements", {}).get("races", [])
+            race_names = [r.get("name", "") for r in races]
+            rmask = 0
+            for r in races:
+                rmask |= RACE_ID_TO_MASK.get(int(r.get("id", 0)), 0)
+
+            quest_rows.append(
+                (
+                    qid,
+                    cls_name,
+                    title,
+                    desc,
+                    rew_sid,
+                    rew_sname,
+                    ", ".join(race_names),
+                    rmask,
+                )
+            )
+
+        with conn:
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO wf_class_quests (
+                    quest_id, class_name, title, description,
+                    reward_spell_id, reward_spell_name, race_name, race_mask
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                quest_rows,
+            )
+        print(f"[Sync] {len(quest_rows)} {cls_name}-Klassenquests gespeichert.")
+        total_quests += len(quest_rows)
+
     conn.close()
-    print(f"[Sync] {len(quest_rows)} Priester-Klassenquests in wf_class_quests gespeichert.")
-    return len(quest_rows)
+    print(f"[Sync] Insgesamt {total_quests} Klassenquests für alle 9 Klassen in wf_class_quests gespeichert.")
+    return total_quests
 
 
 if __name__ == "__main__":
@@ -330,5 +353,5 @@ if __name__ == "__main__":
         raise RuntimeError("Blizzard API Credentials fehlen in .env!")
     sync_talent_trees(api)
     sync_wands(api)
-    sync_priest_quests(api)
+    sync_all_class_quests(api)
     print("✅ Vollständige Blizzard API Synchronisation abgeschlossen!")
