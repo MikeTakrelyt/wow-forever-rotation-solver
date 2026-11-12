@@ -90,10 +90,10 @@ st.markdown(
 
 # Known Quest-unlocked spells (especially Level 10/20 Priest racial spells)
 KNOWN_QUEST_SPELLS: dict[int, str] = {
-    2652: "Level-10-Klassenquest 'Im Schatten' (In Tenebris): Startet bei deinem Priesterlehrer (z. B. Pater Lankester / Dunkler Kleriker Beryn); Abgabe bei Aelthalyste in Brill (Tirisfal).",
-    9035: "Level-10-Klassenquest für Trolle: Startet beim Priesterlehrer im Dorf Sen'jin / Durotar.",
+    2652: "Level-10-Klassenquest 'Im Schatten' (In Tenebris): Startet bei deinem Priesterlehrer in Brill (Pater Lankester); führt dich nach Unterstadt (Kriegerviertel) zur Banshee Aelthalyste.",
+    9035: "Level-10-Klassenquest für Trolle: Startet beim Priesterlehrer im Dorf Sen'jin / Durotar; führt nach Orgrimmar.",
     10797: "Level-10-Klassenquest für Nachtelfen: Startet im Tempel des Mondes / Dolanaar.",
-    13908: "Level-10-Klassenquest für Menschen/Zwerge: Startet in der Kathedrale des Lichts (Sturmwind) bzw. Eisenschmiede.",
+    13908: "Level-10-Klassenquest für Menschen/Zwerge: Startet bei deinem Priesterlehrer in Goldhain/Kharanos; führt in die Kathedrale des Lichts (Sturmwind) bzw. Eisenschmiede.",
 }
 
 
