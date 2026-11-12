@@ -33,6 +33,184 @@ RACE_OPTIONS: Dict[str, int] = {
 WAND_CLASSES = {"PRIEST", "MAGE", "WARLOCK"}
 
 
+def get_class_stance_or_pet(class_name: str, level: int) -> Optional[Dict[str, Any]]:
+    """
+    Returns optimal shapeshift form, pet/demon or combat stance for leveling flow.
+    Covers all 9 classes in World of Warcraft: Forever.
+    """
+    cls = class_name.upper()
+    if cls == "DRUID":
+        if level >= 20:
+            return {
+                "type": "Gestalt",
+                "name": "Katzengestalt (Cat Form)",
+                "icon_fdid": 132115,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132115.jpg",
+                "summary": "Energie-System (100 Energie). Höchster Leveling-DPS! Nutzt Klaue/Schreddern & Wilder Biss Finisher.",
+                "mana_regen_note": "100% Manaregeneration läuft während des Katzenkampfes im Hintergrund weiter (0 Manakosten in Gestalt)!",
+            }
+        elif level >= 10:
+            return {
+                "type": "Gestalt",
+                "name": "Bärengestalt (Bear Form)",
+                "icon_fdid": 132276,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132276.jpg",
+                "summary": "Wut-System (100 Wut). Hohe Rüstung (+360%), Wilde Attacke & Zermalmen. Keine Manakosten im Kampf.",
+                "mana_regen_note": "100% Manaregeneration läuft während des Bärenkampfes im Hintergrund weiter (0 Manakosten in Gestalt)!",
+            }
+        else:
+            return {
+                "type": "Gestalt",
+                "name": "Menschliche Gestalt (Caster)",
+                "icon_fdid": 136096,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136096.jpg",
+                "summary": "Fernkampf-Opener mit Zorn & Mondfeuer, danach Stab-Nahkampf zum Manasparen vor Level 10 (Stäbe/Keulen, kein Zauberstab möglich!).",
+                "mana_regen_note": "5-Sekunden-Regel greift in der Nahkampf-Finisher-Phase.",
+            }
+    elif cls == "WARLOCK":
+        if level >= 20:
+            return {
+                "type": "Dämon",
+                "name": "Sukkubus / Leerwandler",
+                "icon_fdid": 136220,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136220.jpg",
+                "summary": "Sukkubus für maximalen Single-Target-DPS beim Grinden; Leerwandler als Tank bei gefährlichen Mobs.",
+                "mana_regen_note": "Leerwandler bindet Aggro mit 'Qual' (Torment) und verhindert Zauber-Pushback; Schild 'Opferung' im Notfall.",
+            }
+        elif level >= 10:
+            return {
+                "type": "Dämon",
+                "name": "Leerwandler (Voidwalker)",
+                "icon_fdid": 136221,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136221.jpg",
+                "summary": "Tank-Dämon! Bindet Aggro mit 'Qual' (Torment), sodass DoTs ungestört ticken. Ermöglicht pausenloses Grinden mit Aderlass.",
+                "mana_regen_note": "Klassenquest 'Die Beschwörung' ab Level 10 freigeschaltet.",
+            }
+        else:
+            return {
+                "type": "Dämon",
+                "name": "Wichtel (Imp)",
+                "icon_fdid": 136218,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136218.jpg",
+                "summary": "Fernkampf-Feuerblitz & Blutpakt (+Ausdauer-Buff für Hexenmeister).",
+                "mana_regen_note": "Unterstützt den Opener aus maximaler Reichweite.",
+            }
+    elif cls == "HUNTER":
+        if level >= 10:
+            return {
+                "type": "Begleiter",
+                "name": "Katze (DPS) oder Eber (Tank/Charge)",
+                "icon_fdid": 132183,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132183.jpg",
+                "summary": "Katze (schnellstes Attack-Speed, Klaue & Beißen) für maximalen Grind-DPS; Eber für sofortigen Sturmangriff.",
+                "mana_regen_note": "Pet bindet Aggro mit 'Knurren'. Jäger kann auf max. Reichweite schießen & FSR nutzen.",
+            }
+        else:
+            return {
+                "type": "Begleiter",
+                "name": "Noch kein Begleiter (Freischaltung auf Level 10)",
+                "icon_fdid": 132183,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132183.jpg",
+                "summary": "Klassenquest 'Tier zähmen' ab Level 10. Bis dahin Kiting mit Erschütternder Schuss & Schlangenbiss.",
+                "mana_regen_note": "Nahkampf-Abschluss mit Raptorstoß & Zurechtstutzen.",
+            }
+    elif cls == "PRIEST":
+        if level >= 40:
+            return {
+                "type": "Gestalt",
+                "name": "Schattengestalt (Shadowform)",
+                "icon_fdid": 136121,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136121.jpg",
+                "summary": "+10% Schattenschaden, -50% Schatten-Manakosten, +100% Schatten-Crit-Bonus & -15% erlittener physischer Schaden!",
+                "mana_regen_note": "Keine Heilzauber im Kampf nötig; optimal für pausenlosen Schatten-Grind.",
+            }
+        else:
+            return {
+                "type": "Haltung",
+                "name": "Menschliche Gestalt (Zauberstab-Grind)",
+                "icon_fdid": 135940,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135940.jpg",
+                "summary": "Frontloading mit PW:S & DoTs, danach FSR-Zauberstab-Phase zur 100% Willenskraft-Manaregeneration.",
+                "mana_regen_note": "Willensentzug (Spirit Tap) verdoppelt die Willenskraft nach jedem Mob-Kill!",
+            }
+    elif cls == "WARRIOR":
+        if level >= 30:
+            return {
+                "type": "Haltung",
+                "name": "Berserkerhaltung (Berserker Stance)",
+                "icon_fdid": 132349,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132349.jpg",
+                "summary": "+3% Kritische Trefferchance, Wirbelwind & Hinrichten für maximales Leveling-Tempo! Freischaltung über Level-30-Klassenquest 'Die Insel der Krieger'.",
+                "mana_regen_note": "Wut-Ressource: Erzeugt durch automatische Nahkampfangriffe und erlittenen Schaden.",
+            }
+        else:
+            return {
+                "type": "Haltung",
+                "name": "Kampfhaltung (Battle Stance)",
+                "icon_fdid": 132223,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132223.jpg",
+                "summary": "Sturmangriff zum Pull (+Wutaufbau), Überwältigen (wenn der Gegner ausweicht) & Verwunden.",
+                "mana_regen_note": "Wut-Ressource: Kampfhaltung behält bis zu 25 Wut beim Haltungswechsel (mit Talent Taktiker).",
+            }
+    elif cls == "ROGUE":
+        return {
+            "type": "Haltung",
+            "name": "Verstohlenheit (Stealth & Melee-Flow)",
+            "icon_fdid": 132320,
+            "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132320.jpg",
+            "summary": "Opener aus Verstohlenheit (Hinterhalt / Fieser Trick), danach Finisterer Stoß zum Combo-Aufbau & Finisher (Zerhäckseln für +Tempo & Ausweiden).",
+            "mana_regen_note": "Energie-System: Feste 100 Energie, regeneriert 20 Energie alle 2 Sekunden.",
+        }
+    elif cls == "MAGE":
+        return {
+            "type": "Rüstung",
+            "name": "Frost-Rüstung / Eis-Rüstung",
+            "icon_fdid": 135843,
+            "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/135843.jpg",
+            "summary": "Verlangsamt gegnerische Angreifer um 30%, erhöht Rüstung und schützt beim Frostblitz-Kiting aus 36m Reichweite + Arkane Intelligenz.",
+            "mana_regen_note": "Hervorrufung (Evocation) ab Lv 20 & Zauberstab-Finishers zur Manaregeneration.",
+        }
+    elif cls == "PALADIN":
+        if level >= 20:
+            return {
+                "type": "Siegel",
+                "name": "Siegel des Befehls & Segen der Macht",
+                "icon_fdid": 132347,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132347.jpg",
+                "summary": "Beste Kombination mit langsamer Zweihandwaffe (>3.3s Tempo). Chance auf 70% zusätzlichen Heiligschaden pro Schlag. Richturteil bei Betäubung.",
+                "mana_regen_note": "Mana wird nur für Segen, Siegel-Refresh und Richturteil benötigt; Schlagabfolge verbraucht 0 Mana.",
+            }
+        else:
+            return {
+                "type": "Siegel",
+                "name": "Siegel der Rechtschaffenheit & Segen der Macht",
+                "icon_fdid": 132325,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132325.jpg",
+                "summary": "Konstanter Heiligschaden bei jedem Nahkampfschlag + Segen der Macht für erhöhte Angriffskraft.",
+                "mana_regen_note": "Richturteil vor dem Auffrischen des Siegels nutzen.",
+            }
+    elif cls == "SHAMAN":
+        if level >= 30:
+            return {
+                "type": "Waffenverzauberung",
+                "name": "Waffe des Windzorns (Windfury)",
+                "icon_fdid": 136018,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136018.jpg",
+                "summary": "Verleiht jedem Schlag mit langsamer 2H-Waffe eine 20%-Chance auf 2 Extra-Angriffe mit Bonus-Angriffskraft für massive Burst-Kills!",
+                "mana_regen_note": "Totem der Steinhaut / Erdstärke & Totem der Verbrennung unterstützen den Kampf.",
+            }
+        else:
+            return {
+                "type": "Waffenverzauberung",
+                "name": "Waffe des Felsbeißers (Rockbiter)",
+                "icon_fdid": 136017,
+                "icon_url": "https://render.worldofwarcraft.com/eu/icons/56/136017.jpg",
+                "summary": "Konstanter Bonus auf Angriffskraft und Waffenschaden bei jedem Schlag + Erdschock als Unterbrecher.",
+                "mana_regen_note": "Mana für Schocks sparen und Nahkampf-Schläge arbeiten lassen.",
+            }
+    return None
+
+
 def get_recommended_wand(
     level: int,
     wand_dmg_mult: float = 1.0,
@@ -596,6 +774,38 @@ def get_optimal_rotation(
             absorb *= mods["pws_absorb_mult"]
 
         eff_mana = max(0, int(round(mana)))
+        resource_type = "mana"
+        resource_cost = eff_mana
+
+        # Class-specific resource handling (Druid Feral, Rogue Energy, Warrior Rage)
+        is_druid_cat = class_name.upper() == "DRUID" and nm in (
+            "Klaue", "Schreddern", "Zerfetzen", "Wilder Biss", "Schleichen", "Katzengestalt", "Tigerfuror", "Krallenhieb", "Aufschlitzen"
+        )
+        is_druid_bear = class_name.upper() == "DRUID" and nm in (
+            "Zermalmen", "Prankenhieb", "Hieb", "Wilde Attacke", "Wilde Attacke (Bär)", "Demoralisierendes Gebrüll", "Bärengestalt"
+        )
+        is_rogue = class_name.upper() == "ROGUE"
+        is_warrior = class_name.upper() == "WARRIOR"
+
+        if is_druid_cat:
+            eff_mana = 0  # Costs Energy in Cat Form, 0 Mana from player pool
+            resource_type = "energy"
+            resource_cost = int(mana)
+            gcd_ms = 1000  # Cat form has 1.0s GCD!
+        elif is_druid_bear:
+            eff_mana = 0  # Costs Rage in Bear Form, 0 Mana from player pool
+            resource_type = "rage"
+            resource_cost = max(5, int(mana // 10))
+        elif is_rogue:
+            eff_mana = 0
+            resource_type = "energy"
+            resource_cost = int(mana)
+            gcd_ms = 1000
+        elif is_warrior:
+            eff_mana = 0
+            resource_type = "rage"
+            resource_cost = max(5, int(mana // 10))
+
         avg_direct = ((dir_min + dir_max) / 2.0) * dmg_mult
 
         # Cap DoT damage to fight_duration_sec
@@ -624,7 +834,14 @@ def get_optimal_rotation(
             exec_time = max(cast_ms, gcd_ms) / 1000.0
 
         dpct = round(avg_dmg / exec_time, 2) if exec_time > 0 else 0.0
-        dpm = round(avg_dmg / eff_mana, 2) if eff_mana > 0 else 0.0
+        if eff_mana > 0:
+            dpm = round(avg_dmg / eff_mana, 2)
+        elif is_druid_cat or is_druid_bear:
+            dpm = round(avg_dmg / max(1, resource_cost), 2) * 5.0  # High efficiency rating for 0-mana feral abilities
+        elif is_rogue or is_warrior:
+            dpm = round(avg_dmg / max(1, resource_cost), 2) * 4.0
+        else:
+            dpm = 0.0
 
         sp_eval = dict(sp)
         sp_eval.update(
@@ -633,6 +850,8 @@ def get_optimal_rotation(
                 "effective_cast_time_ms": cast_ms,
                 "effective_cooldown_ms": cd_ms,
                 "effective_mana_cost": eff_mana,
+                "resource_type": resource_type,
+                "resource_cost": resource_cost,
                 "avg_direct_dmg": round(avg_direct, 2),
                 "effective_dot_dmg": round(eff_dot, 2),
                 "avg_dmg": avg_dmg,
@@ -809,6 +1028,63 @@ def get_optimal_rotation(
     if current_level < 5 or wand_dps <= 0:
         frontload_budget_sec = fight_duration_sec
 
+    # Druid Shapeshift Step into Cat Form (Lv 20+) or Bear Form (Lv 10-19)
+    if class_name.upper() == "DRUID":
+        if current_level >= 20:
+            sequence.append(
+                {
+                    "phase": "Gestaltwandel",
+                    "step": len(sequence) + 1,
+                    "timestamp_sec": round(combat_time_sec, 1),
+                    "spell_id": 768,
+                    "display_name": "Katzengestalt (Cat Form)",
+                    "name": "Katzengestalt",
+                    "rank": "Gestaltwandel",
+                    "mana_cost": 0,
+                    "resource_type": "mana",
+                    "resource_cost": 0,
+                    "exec_time_sec": 1.5,
+                    "expected_dmg": 0.0,
+                    "absorb": 0.0,
+                    "dpct": 0.0,
+                    "dpm": 0.0,
+                    "score": 100.0,
+                    "custom_icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132115.jpg",
+                    "reason": (
+                        "Wechsel in Katzengestalt: Nutzt 100 Energie statt Mana (0 Manakosten für alle Katzenangriffe). "
+                        "100% Manaregeneration läuft ab jetzt während des gesamten Kampfes im Hintergrund weiter!"
+                    ),
+                }
+            )
+            combat_time_sec += 1.5
+        elif 10 <= current_level < 20:
+            sequence.append(
+                {
+                    "phase": "Gestaltwandel",
+                    "step": len(sequence) + 1,
+                    "timestamp_sec": round(combat_time_sec, 1),
+                    "spell_id": 5487,
+                    "display_name": "Bärengestalt (Bear Form)",
+                    "name": "Bärengestalt",
+                    "rank": "Gestaltwandel",
+                    "mana_cost": 0,
+                    "resource_type": "mana",
+                    "resource_cost": 0,
+                    "exec_time_sec": 1.5,
+                    "expected_dmg": 0.0,
+                    "absorb": 0.0,
+                    "dpct": 0.0,
+                    "dpm": 0.0,
+                    "score": 100.0,
+                    "custom_icon_url": "https://render.worldofwarcraft.com/eu/icons/56/132276.jpg",
+                    "reason": (
+                        "Wechsel in Bärengestalt: +360% Rüstung, Wut-System statt Mana (0 Manakosten für Zermalmen). "
+                        "100% Manaregeneration läuft ab jetzt während des gesamten Kampfes im Hintergrund weiter!"
+                    ),
+                }
+            )
+            combat_time_sec += 1.5
+
     active_dots: Dict[str, float] = {}  # spell_name -> expires_at_sec
     cooldown_ready: Dict[str, float] = {}  # spell_name -> ready_at_sec
     if opener:
@@ -817,7 +1093,7 @@ def get_optimal_rotation(
         if opener["effective_dot_duration_ms"] > 0:
             active_dots[opener["name"]] = opener["effective_dot_duration_ms"] / 1000.0
 
-    while combat_time_sec + 1.5 <= frontload_budget_sec:
+    while combat_time_sec + 1.0 <= frontload_budget_sec:
         rem_fight = fight_duration_sec - combat_time_sec
         best_cand = None
         best_cand_score = -1.0
@@ -829,6 +1105,14 @@ def get_optimal_rotation(
                 continue
             if mods["shadowform_active"] and s["school"] == "Holy":
                 continue
+            # Druid shapeshift combat restrictions: inside form, cannot cast nature caster spells
+            if class_name.upper() == "DRUID":
+                if current_level >= 20:
+                    if nm not in ("Klaue", "Schreddern", "Zerfetzen", "Wilder Biss", "Krallenhieb", "Aufschlitzen"):
+                        continue
+                elif 10 <= current_level < 20:
+                    if nm not in ("Zermalmen", "Prankenhieb", "Hieb", "Wilde Attacke", "Demoralisierendes Gebrüll"):
+                        continue
             # Reserve Shadow Word: Death for Finisher unless in pure burst mode
             if nm == "Schattenwort: Tod" and mode != "burst":
                 continue
@@ -963,10 +1247,28 @@ def get_optimal_rotation(
             )
         elif not is_wand_user and wand_dps > 0 and class_name.upper() not in ("WARRIOR", "ROGUE"):
             # Hybrid / Hunter classes with Mana: auto attack finisher
-            auto_name = "Automatischer Schuss" if class_name.upper() == "HUNTER" else "Automatischer Nahkampfangriff"
-            auto_sid = 75 if class_name.upper() == "HUNTER" else 6603
+            cls_upper = class_name.upper()
+            auto_sid = 6603
+            custom_icon = ""
             auto_total_dmg = round(wand_dps * rem_wand_sec, 1)
             total_expected_damage += auto_total_dmg
+            if cls_upper == "HUNTER":
+                auto_name = "Automatischer Schuss"
+                auto_sid = 75
+                auto_reason = f"Automatischer Schuss auf max. Reichweite ({auto_total_dmg:.0f} Schaden für 0 Mana), während Begleiter Aggro hält!"
+            elif cls_upper == "DRUID" and current_level >= 20:
+                auto_name = "Automatischer Nahkampfangriff (Katzengestalt)"
+                auto_sid = 768
+                custom_icon = "https://render.worldofwarcraft.com/eu/icons/56/132115.jpg"
+                auto_reason = f"Katzen-Nahkampf ({auto_total_dmg:.0f} Schaden für 0 Mana). 100% Willenskraft-Manaregeneration im Hintergrund!"
+            elif cls_upper == "DRUID" and 10 <= current_level < 20:
+                auto_name = "Automatischer Nahkampfangriff (Bärengestalt)"
+                auto_sid = 5487
+                custom_icon = "https://render.worldofwarcraft.com/eu/icons/56/132276.jpg"
+                auto_reason = f"Bären-Nahkampf ({auto_total_dmg:.0f} Schaden für 0 Mana) erzeugt Wut. 100% Willenskraft-Manaregeneration im Hintergrund!"
+            else:
+                auto_name = "Automatischer Nahkampfangriff"
+                auto_reason = f"Zauber-Stopp ab t={fsr_switch_sec:.1f}s für {rem_wand_sec:.1f}s Auto-Attack ({auto_total_dmg:.0f} Schaden für 0 Mana) zur vollen FSR-Manaregeneration!"
             sequence.append(
                 {
                     "phase": "Finisher / 5-Sek.-Regel (Auto-Attack)",
@@ -977,16 +1279,16 @@ def get_optimal_rotation(
                     "name": auto_name,
                     "rank": f"{wand_dps:.1f} DPS",
                     "mana_cost": 0,
+                    "resource_type": "mana",
+                    "resource_cost": 0,
                     "exec_time_sec": rem_wand_sec,
                     "expected_dmg": auto_total_dmg,
                     "absorb": 0.0,
                     "dpct": wand_dps,
                     "dpm": 0.0,
                     "score": 100.0,
-                    "reason": (
-                        f"Zauber-Stopp ab t={fsr_switch_sec:.1f}s für {rem_wand_sec:.1f}s Auto-Attack "
-                        f"({auto_total_dmg:.0f} Schaden für 0 Mana) zur vollen FSR-Manaregeneration!"
-                    ),
+                    "custom_icon_url": custom_icon,
+                    "reason": auto_reason,
                 }
             )
         else:
@@ -1084,6 +1386,8 @@ def get_optimal_rotation(
                 sp for sp in future_spells if sp["unlock_level"] == next_lvl
             ]
 
+    stance_or_pet = get_class_stance_or_pet(class_name, current_level)
+
     return {
         "class_name": class_name,
         "current_level": current_level,
@@ -1093,6 +1397,7 @@ def get_optimal_rotation(
         "wand_dps": wand_dps,
         "recommended_wand": recommended_wand,
         "available_wands": available_wands,
+        "stance_or_pet": stance_or_pet,
         "talents": talent_state,
         "sequence": sequence,
         "summary": {

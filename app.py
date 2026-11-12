@@ -288,25 +288,112 @@ kpi1.metric(
     f"{summary['total_expected_damage']:.0f} Dmg",
     f"{summary['total_expected_damage'] / fight_duration_sec:.1f} Eff. DPS",
 )
-kpi2.metric(
-    "Manakosten (Rotation)",
-    f"{summary['total_mana_used']} Mana",
-    f"{summary['overall_dpm']:.2f} Gesamt-DPM",
-)
-kpi3.metric(
-    "Zauberstab-Wechsel (FSR)",
-    f"ab t = {summary['fsr_switch_sec']:.1f} s",
-    f"{summary['wand_duration_sec']:.1f} s Zauberstab ({result['wand_dps']:.1f} DPS)",
-)
-kpi4.metric(
-    "5-Sek.-Regel Manareg.",
-    f"{summary['fsr_regen_sec']:.1f} Sek.",
-    "Volle Spirit-Regeneration im Kampf" if summary["fsr_regen_sec"] > 0 else "Kurzes Fenster",
-)
+
+is_wand_user = selected_class in ("PRIEST", "MAGE", "WARLOCK")
+if is_wand_user:
+    kpi2.metric(
+        "Manakosten (Rotation)",
+        f"{summary['total_mana_used']} Mana",
+        f"{summary['overall_dpm']:.2f} Gesamt-DPM",
+    )
+    kpi3.metric(
+        "Zauberstab-Wechsel (FSR)",
+        f"ab t = {summary['fsr_switch_sec']:.1f} s",
+        f"{summary['wand_duration_sec']:.1f} s Zauberstab ({result['wand_dps']:.1f} DPS)",
+    )
+    kpi4.metric(
+        "5-Sek.-Regel Manareg.",
+        f"{summary['fsr_regen_sec']:.1f} Sek.",
+        "Volle Spirit-Regeneration im Kampf" if summary["fsr_regen_sec"] > 0 else "Kurzes Fenster",
+    )
+elif selected_class == "DRUID":
+    sop_name = result["stance_or_pet"]["name"] if result.get("stance_or_pet") else "Gestalt"
+    kpi2.metric(
+        "Manakosten (Rotation)",
+        f"{summary['total_mana_used']} Mana",
+        "0 Mana in Tiergestalt!" if current_level >= 10 else f"{summary['overall_dpm']:.2f} Gesamt-DPM",
+    )
+    kpi3.metric(
+        "Aktive Tiergestalt",
+        sop_name.split("(")[0].strip(),
+        "Katzengestalt (Energie)" if current_level >= 20 else ("Bärengestalt (Wut)" if current_level >= 10 else "Caster (Stab/Keule)"),
+    )
+    kpi4.metric(
+        "Tiergestalt-Manareg.",
+        "100% Dauerregen" if current_level >= 10 else f"{summary['fsr_regen_sec']:.1f} Sek.",
+        "Volles Mana nach Kill!" if current_level >= 10 else "Stab-Autohit spart Mana",
+    )
+elif selected_class == "HUNTER":
+    kpi2.metric(
+        "Manakosten (Rotation)",
+        f"{summary['total_mana_used']} Mana",
+        f"{summary['overall_dpm']:.2f} Gesamt-DPM",
+    )
+    kpi3.metric(
+        "Begleiter-Status",
+        "Katze / Eber" if current_level >= 10 else "Kein Pet (< Lv 10)",
+        "Knurren bindet Aggro",
+    )
+    kpi4.metric(
+        "Distanz & FSR-Regen",
+        f"{summary['fsr_regen_sec']:.1f} Sek.",
+        "Autoshot verbraucht 0 Mana",
+    )
+elif selected_class == "WARRIOR":
+    kpi2.metric(
+        "Ressource (Wut)",
+        "100 Max. Wut",
+        "Aufbau via Autohits",
+    )
+    kpi3.metric(
+        "Aktive Haltung",
+        "Berserkerhaltung" if current_level >= 30 else "Kampfhaltung",
+        "+3% Crit / Sturmangriff",
+    )
+    kpi4.metric(
+        "Nahkampf-Flow",
+        f"{result['wand_dps']:.1f} Waffen-DPS",
+        "Keine Manapausen!",
+    )
+elif selected_class == "ROGUE":
+    kpi2.metric(
+        "Ressource (Energie)",
+        "100 Max. Energie",
+        "+20 Energie alle 2s",
+    )
+    kpi3.metric(
+        "Kampfmodus",
+        "Verstohlenheit (Stealth)",
+        "Opener & Zerhäckseln",
+    )
+    kpi4.metric(
+        "Nahkampf-Flow",
+        f"{result['wand_dps']:.1f} Waffen-DPS",
+        "Keine Manapausen!",
+    )
+else:
+    # Paladin / Shaman
+    kpi2.metric(
+        "Manakosten (Rotation)",
+        f"{summary['total_mana_used']} Mana",
+        f"{summary['overall_dpm']:.2f} Gesamt-DPM",
+    )
+    sop_name = result["stance_or_pet"]["name"] if result.get("stance_or_pet") else "Buff"
+    kpi3.metric(
+        "Waffen-Buff / Siegel",
+        sop_name.split("&")[0].split("(")[0].strip()[:18],
+        "Verstärkt jeden Schlag",
+    )
+    kpi4.metric(
+        "5-Sek.-Regel Manareg.",
+        f"{summary['fsr_regen_sec']:.1f} Sek.",
+        "Nahkampf spart Mana",
+    )
+
 kpi5.metric(
     "Aktive Talentpunkte",
     f"{talents_info['points_spent']} / 51",
-    "Schattengestalt aktiv (-50% Mana!)" if mods["shadowform_active"] else f"Ab Lv 10 ({max(0, current_level-9)} Pkt.)",
+    "Schattengestalt (-50% Mana!)" if mods.get("shadowform_active") else (f"Ab Lv 10 ({max(0, current_level-9)} Pkt.)" if current_level >= 10 else "Freischaltung Lv 10"),
 )
 
 st.markdown("---")
@@ -355,6 +442,17 @@ with col_rot:
                 else ""
             )
 
+            res_type = step.get("resource_type", "mana")
+            res_cost = step.get("resource_cost", step.get("mana_cost", 0))
+            if res_type == "energy":
+                cost_pill = f"⚡ <b>{res_cost} Energie</b> (💧 0 Mana)"
+            elif res_type == "rage":
+                cost_pill = f"🔥 <b>{res_cost} Wut</b> (💧 0 Mana)"
+            elif step["mana_cost"] == 0:
+                cost_pill = "💧 <b>0 Mana</b> (100% Regen)"
+            else:
+                cost_pill = f"💧 <b>{step['mana_cost']} Mana</b>"
+
             st.markdown(
                 f"""
                 <div class="rot-card {card_cls}">
@@ -363,7 +461,7 @@ with col_rot:
                         {icon_html}<span>{step['display_name']}</span>
                     </div>
                     <div class="spell-meta">
-                        💧 <b>{step['mana_cost']} Mana</b> &nbsp;|&nbsp;
+                        {cost_pill} &nbsp;|&nbsp;
                         ⏱️ <b>{step['exec_time_sec']:.1f}s</b> Dauer &nbsp;|&nbsp;
                         {dmg_or_abs}{metrics_pill}
                     </div>
@@ -374,6 +472,33 @@ with col_rot:
             )
 
 with col_side:
+    # 0. Active Stance / Form / Pet Card (Leveling Flow)
+    sop = result.get("stance_or_pet")
+    if sop:
+        sop_type = sop.get("type", "Haltung")
+        st.markdown(f"### 🐾 Aktive {sop_type} & Leveling-Flow")
+        sop_icon = sop.get("icon_url", "")
+        sop_icon_html = (
+            f'<img src="{sop_icon}" style="width:36px;height:36px;border-radius:6px;border:2px solid #8b5cf6;margin-right:10px;vertical-align:middle;box-shadow:0 2px 6px rgba(0,0,0,0.5);" />'
+            if sop_icon
+            else ""
+        )
+        st.markdown(
+            f"""
+            <div class="milestone-box" style="border-left:4px solid #8b5cf6;">
+                <div style="font-size:1.05rem;font-weight:700;color:#c084fc;display:flex;align-items:center;">
+                    {sop_icon_html}<span>{sop['name']}</span>
+                </div>
+                <div style="font-size:0.86rem;color:#e2e8f0;margin-top:6px;line-height:1.4;">
+                    {sop['summary']}
+                </div>
+                <div style="font-size:0.82rem;color:#a78bfa;margin-top:6px;background:rgba(139,92,246,0.15);padding:6px 10px;border-radius:5px;border-left:3px solid #8b5cf6;">
+                    💡 <b>Leveling-Flow:</b> {sop['mana_regen_note']}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     # 1. New at Trainer / Quest on THIS level
     st.markdown(f"### 🎓 Neu freigeschaltet auf Level {current_level}")
     new_spells = result["new_at_current_level"]
@@ -488,54 +613,55 @@ with col_side:
     else:
         st.success("Maximales Level (60) erreicht – alle Ränge freigeschaltet!")
 
-    # 2.5 Recommended Wand from Official Blizzard API (wf_wands)
-    rec_wand = result.get("recommended_wand")
-    avail_wands = result.get("available_wands", [])
-    if rec_wand:
-        st.markdown(f"### 🪄 Empfohlener Zauberstab (bis Level {current_level})")
-        w_icon = rec_wand.get("icon_url", "")
-        w_icon_html = (
-            f'<img src="{w_icon}" style="width:32px;height:32px;border-radius:5px;border:1px solid #10b981;margin-right:10px;vertical-align:middle;" />'
-            if w_icon
-            else "🪄 "
-        )
-        wand_rk = talents_info["allocated"].get(105850, 0)
-        spec_bonus_str = (
-            f" (inkl. +{13 if wand_rk == 1 else 25}% Zauberstab-Spez. {wand_rk}/2)"
-            if wand_rk > 0
-            else ""
-        )
-        stats_line = (
-            f"<div style='font-size:0.82rem;color:#6ee7b7;margin-top:3px;'>✨ {rec_wand['bonus_stats']}</div>"
-            if rec_wand.get("bonus_stats")
-            else ""
-        )
-        st.markdown(
-            f"""
-            <div class="milestone-box" style="border-left:4px solid #10b981;">
-                <div style="font-size:1.02rem;font-weight:700;color:#6ee7b7;display:flex;justify-content:space-between;align-items:center;">
-                    <span style="display:flex;align-items:center;">{w_icon_html}{rec_wand['name']}</span>
-                    <a href="https://www.wowhead.com/forever/de/item={rec_wand['item_id']}" target="_blank" style="font-size:0.75rem;color:#6ee7b7;text-decoration:none;font-weight:400;border:1px solid #047857;padding:2px 6px;border-radius:4px;background:#064e3b;">🔗 Wowhead ↗</a>
+    # 2.5 Recommended Wand from Official Blizzard API (Only for Priest, Mage, Warlock)
+    if is_wand_user:
+        rec_wand = result.get("recommended_wand")
+        avail_wands = result.get("available_wands", [])
+        if rec_wand:
+            st.markdown(f"### 🪄 Empfohlener Zauberstab (bis Level {current_level})")
+            w_icon = rec_wand.get("icon_url", "")
+            w_icon_html = (
+                f'<img src="{w_icon}" style="width:32px;height:32px;border-radius:5px;border:1px solid #10b981;margin-right:10px;vertical-align:middle;" />'
+                if w_icon
+                else "🪄 "
+            )
+            wand_rk = talents_info["allocated"].get(105850, 0)
+            spec_bonus_str = (
+                f" (inkl. +{13 if wand_rk == 1 else 25}% Zauberstab-Spez. {wand_rk}/2)"
+                if wand_rk > 0
+                else ""
+            )
+            stats_line = (
+                f"<div style='font-size:0.82rem;color:#6ee7b7;margin-top:3px;'>✨ {rec_wand['bonus_stats']}</div>"
+                if rec_wand.get("bonus_stats")
+                else ""
+            )
+            st.markdown(
+                f"""
+                <div class="milestone-box" style="border-left:4px solid #10b981;">
+                    <div style="font-size:1.02rem;font-weight:700;color:#6ee7b7;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="display:flex;align-items:center;">{w_icon_html}{rec_wand['name']}</span>
+                        <a href="https://www.wowhead.com/forever/de/item={rec_wand['item_id']}" target="_blank" style="font-size:0.75rem;color:#6ee7b7;text-decoration:none;font-weight:400;border:1px solid #047857;padding:2px 6px;border-radius:4px;background:#064e3b;">🔗 Wowhead ↗</a>
+                    </div>
+                    <div style="font-size:0.84rem;color:#cbd5e1;margin-top:5px;">
+                        ⚡ <b>{rec_wand['effective_dps']:.2f} Eff. DPS</b>{spec_bonus_str} &nbsp;|&nbsp;
+                        Basis: {rec_wand['dps']:.2f} DPS ({rec_wand['min_dmg']:.0f}–{rec_wand['max_dmg']:.0f} {rec_wand.get('damage_school', 'Magie')}, {rec_wand.get('speed_ms', 1500)/1000.0:.2f}s) &nbsp;|&nbsp;
+                        Ab Lv <b>{rec_wand['required_level']}</b> (iLvl {rec_wand['item_level']})
+                    </div>
+                    {stats_line}
                 </div>
-                <div style="font-size:0.84rem;color:#cbd5e1;margin-top:5px;">
-                    ⚡ <b>{rec_wand['effective_dps']:.2f} Eff. DPS</b>{spec_bonus_str} &nbsp;|&nbsp;
-                    Basis: {rec_wand['dps']:.2f} DPS ({rec_wand['min_dmg']:.0f}–{rec_wand['max_dmg']:.0f} {rec_wand.get('damage_school', 'Magie')}, {rec_wand.get('speed_ms', 1500)/1000.0:.2f}s) &nbsp;|&nbsp;
-                    Ab Lv <b>{rec_wand['required_level']}</b> (iLvl {rec_wand['item_level']})
-                </div>
-                {stats_line}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        if len(avail_wands) > 1:
-            with st.expander(f"📋 Alle {len(avail_wands)} verfügbaren Zauberstäbe bis Level {current_level} (Blizzard API)"):
-                for w in avail_wands[:8]:
-                    eff_w_dps = round(w["dps"] * mods["wand_dmg_mult"], 2)
-                    st_txt = f" • *{w['bonus_stats']}*" if w.get("bonus_stats") else ""
-                    st.markdown(
-                        f"- **Lv {w['required_level']} – [{w['name']}](https://www.wowhead.com/forever/de/item={w['item_id']})**: "
-                        f"**{eff_w_dps:.1f} Eff. DPS** (Basis {w['dps']:.1f} DPS, iLvl {w['item_level']}){st_txt}"
-                    )
+                """,
+                unsafe_allow_html=True,
+            )
+            if len(avail_wands) > 1:
+                with st.expander(f"📋 Alle {len(avail_wands)} verfügbaren Zauberstäbe bis Level {current_level} (Blizzard API)"):
+                    for w in avail_wands[:8]:
+                        eff_w_dps = round(w["dps"] * mods["wand_dmg_mult"], 2)
+                        st_txt = f" • *{w['bonus_stats']}*" if w.get("bonus_stats") else ""
+                        st.markdown(
+                            f"- **Lv {w['required_level']} – [{w['name']}](https://www.wowhead.com/forever/de/item={w['item_id']})**: "
+                            f"**{eff_w_dps:.1f} Eff. DPS** (Basis {w['dps']:.1f} DPS, iLvl {w['item_level']}){st_txt}"
+                        )
 
     # 3. Active Talents Summary
     with st.expander(
