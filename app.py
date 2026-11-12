@@ -10,6 +10,7 @@ import streamlit as st
 
 from database import DEFAULT_DB_PATH, query_class_quests
 from extractor import extract_all
+from resolve_placeholders import sanitize_spell_tooltip
 from solver import RACE_OPTIONS, get_optimal_rotation
 
 
@@ -596,7 +597,8 @@ with col_side:
                 else "✨ "
             )
 
-            desc_html = (sp["description_raw"] or "").replace("\r\n", "<br>").replace("\n", "<br>")
+            clean_txt = sanitize_spell_tooltip(sp["description_raw"] or "", sp.get("name", ""), sp.get("spell_id", 0))
+            desc_html = clean_txt.replace("\r\n", "<br>").replace("\n", "<br>")
             st.markdown(
                 f"""
                 <div class="milestone-box">
@@ -640,7 +642,8 @@ with col_side:
             else:
                 source_badge = ""
 
-            up_desc_html = (sp["description_raw"] or "").replace("\r\n", "<br>").replace("\n", "<br>")
+            up_clean_txt = sanitize_spell_tooltip(sp["description_raw"] or "", sp.get("name", ""), sp.get("spell_id", 0))
+            up_desc_html = up_clean_txt.replace("\r\n", "<br>").replace("\n", "<br>")
             st.markdown(
                 f"""
                 <div class="milestone-box">
